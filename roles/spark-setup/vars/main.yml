@@ -1,0 +1,9 @@
+spark_version: 2.1.3
+hadoop_version: 2.7
+spark_md5: 391928a96e508cfb49ef9e596d5c55b7
+spark_package: spark.tgz
+spark_url_download: "{{ custom_files_repo_url }}/spark-{{ spark_version }}-bin-hadoop{{ hadoop_version }}.tgz"
+spark_jobs_version: 2.4.0
+spark_jobs_url: "{{custom_files_repo_url}}/spark-jobs-{{spark_jobs_version}}.jar"
+spark_port_master: 19090
+spark_port_worker: 19091

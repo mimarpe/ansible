@@ -1,0 +1,18 @@
+---
+- hosts: dbnodes
+  gather_facts: yes
+  any_errors_fatal: true
+  
+  roles:
+    - role: cassandra-setup
+      tags: [ never, setup ]
+    - role: cassandra-start
+      tags: [ never, start ]
+    - role: cassandra-stop
+      tags: [ never, stop ]
+    - role: cassandra-snapshot
+      tags: [ never, snapshot ]
+    - role: cassandra-restore
+      tags: [ never, restore ]
+    - role: cassandra-post-setup
+      tags: [ never, post-setup ]

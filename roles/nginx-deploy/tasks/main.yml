@@ -1,0 +1,37 @@
+---
+# Copy nginx config
+- name: Copy nginx config
+  template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_home }}/nginx.conf"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+    
+# Copy access files
+- name: Copy access files
+  copy:
+    src: "{{ item }}"
+    dest: "{{ nginx_home }}/"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - htpasswd_prom
+    - htpasswd_am
+    - htpasswd_reaper
+  
+# Run docker nginx container
+- name: Create nginx container
+  command: >
+    docker run 
+    -d 
+    {{ nginx_net }} 
+    -v {{ nginx_home }}/nginx.conf:/etc/nginx/nginx.conf
+    -v {{ nginx_home }}/htpasswd_prom:/etc/nginx/.htpasswd_prom
+    -v {{ nginx_home }}/htpasswd_am:/etc/nginx/.htpasswd_am
+    -v {{ nginx_home }}/htpasswd_reaper:/etc/nginx/.htpasswd_reaper
+    -v {{ nginx_home }}/CA/nginx-selfsigned.key:/etc/nginx/nginx-selfsigned.key 
+    -v {{ nginx_home }}/CA/nginx-selfsigned.crt:/etc/nginx/nginx-selfsigned.crt 
+    --name={{nginx_instance_name}} 
+    {{ nginx_image }} 

@@ -1,0 +1,174 @@
+---
+
+- name: set cassandra package name
+  set_fact:
+    cassandra_package_name: elassandra
+  when: groups.elassandra is defined
+
+
+# tasks file for ansible-cassandra
+- name: install packages
+  package:
+    name : "{{ item }}"
+    state: present
+  with_items:
+    - java-1.8.0-openjdk-devel
+    - jemalloc
+
+- name: create group
+  group:
+    name: ged
+
+- name: create users
+  user:
+    name: "{{ item }}"
+    group: ged
+  with_items:
+    - cassandra
+    - opsmaster
+
+- name: disable swap
+  command: "swapoff -a"
+
+- name: remove swap from fstab
+  lineinfile:
+    path: /etc/fstab
+    state: absent
+    regexp: 'swap'
+
+# https://access.redhat.com/solutions/1560893
+- name: adjust zone_reclaim_mode
+  sysctl:
+    name: vm.zone_reclaim_mode
+    value: 1
+    state: present
+
+# https://access.redhat.com/solutions/99913
+- name: adjust max_map_count
+  sysctl:
+    name: vm.max_map_count
+    value: 1048575
+    state: present
+
+- name: modify memlock limit
+  pam_limits:
+    domain: cassandra
+    limit_type: '-'
+    limit_item: memlock
+    value: unlimited
+
+- name: modify nofile limit
+  pam_limits:
+    domain: cassandra
+    limit_type: '-'
+    limit_item: nofile
+    value: 100000
+
+- name: modify nproc limit
+  pam_limits:
+    domain: cassandra
+    limit_type: '-'
+    limit_item: nproc
+    value: 32768
+
+- name: modify as limit
+  pam_limits:
+    domain: cassandra
+    limit_type: '-'
+    limit_item: as
+    value: unlimited
+
+#https://eos-community.web.cern.ch/t/eos-server-tuning/121/2
+- name: adjust tcp r buffer sizes
+  sysctl:
+    name: net.ipv4.tcp_rmem
+    value: "4096 87380 16777216"
+    state: present
+    
+- name: adjust tcp w buffer sizes
+  sysctl:
+    name: net.ipv4.tcp_wmem
+    value: "4096 87380 16777216"
+    state: present
+
+- name: adjust tcp ecn
+  sysctl:
+    name: net.ipv4.tcp_ecn
+    value: 0
+    state: present
+    
+- name: enable tcp window scaling
+  sysctl:
+    name: net.ipv4.tcp_window_scaling
+    value: 1
+    state: present
+
+- name: disable tcp metrics saving
+  sysctl:
+    name: net.ipv4.tcp_no_metrics_save
+    value: 1
+    state: present
+    
+- name: enable rec window scaling
+  sysctl:
+    name: net.ipv4.tcp_moderate_rcvbuf
+    value: 1
+    state: present
+
+- name: core max r buff
+  sysctl:
+    name: net.core.rmem_max
+    value: 16777216
+    state: present
+    
+- name: core max w buff
+  sysctl:
+    name: net.core.wmem_max
+    value: 16777216
+    state: present
+    
+- name: core def w buff
+  sysctl:
+    name: net.core.rmem_default
+    value: 16777216
+    state: present
+
+- name: core def w buff
+  sysctl:
+    name: net.core.wmem_default
+    value: 16777216
+    state: present
+
+- name: core max conns
+  sysctl:
+    name: net.core.somaxconn
+    value: 4096
+    state: present
+    
+- name: core net max backlog
+  sysctl:
+    name: net.core.netdev_max_backlog
+    value: 250000
+    state: present
+
+- name: port openings
+  firewalld:
+    zone: public
+    port: "{{ item.port }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  with_items:
+    - { port: 9042/tcp } # cass-client
+    - { port: 9160/tcp } # cass-thrift
+    - { port: 7000/tcp } # cass-iternode
+    - { port: 7001/tcp } # cass-iternodeTLS
+    - { port: 7199/tcp } # cass-jmx
+    - { port: 8090/tcp } # cassandraexport
+    - { port: 9100/tcp } # nodeexport
+    - { port: 9200/tcp } # ES HTTP
+    - { port: 9300/tcp } # ES transport
+    - { port: 7077/tcp } # spark master
+    - { port: 6066/tcp } # spark - rest
+    - { port: 19090/tcp } # spark webui
+    - { port: 19091/tcp } # spark work

@@ -1,0 +1,55 @@
+---
+# Creates volume folder
+- name: Creates volume folder
+  file:
+    path: "{{ docker_volumes_dir }}/{{prometheus_instance_name}}_volume"
+    state: directory
+
+# Get user and group ids
+- name: get uid
+  command: id -u
+  register: uid
+  
+- name: get gid
+  command: id -g
+  register: gid
+
+# Copy prometheus config
+- name: Copy prometheus config
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus_home }}/prometheus.yml"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  
+# Copy prometheus rules
+- name: Copy rules file
+  copy:
+    src: rules.yml
+    dest: "{{ prometheus_home }}/alert.rules"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+
+# Run docker prometheus container
+- name: Create prometheus container
+  command: >
+    docker run 
+    -d 
+    {{ prometheus_net }} 
+    -v {{ prometheus_home }}/prometheus.yml:/etc/prometheus/prometheus.yml
+    -v {{ prometheus_home }}/alert.rules:/etc/prometheus/alert.rules
+    -v {{ docker_volumes_dir }}/{{prometheus_instance_name}}_volume/:/prometheus 
+    --name={{prometheus_instance_name}} 
+    --user {{uid.stdout}}:{{gid.stdout}}
+    {{ prometheus_image }} 
+    --config.file=/etc/prometheus/prometheus.yml 
+    --storage.tsdb.path=/prometheus 
+    --web.listen-address=:{{prometheus_instance_port}} 
+    --web.console.templates=/etc/prometheus/consoles
+    --web.console.libraries=/etc/prometheus/console_libraries
+    --web.external-url=https://{{ env_domain }}.domain.com/prometheus 
+    --web.route-prefix="/" 
+    --web.enable-admin-api 
+    --storage.tsdb.retention.size={{prometheus_retention_size}}

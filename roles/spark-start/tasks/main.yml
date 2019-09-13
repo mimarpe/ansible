@@ -1,0 +1,28 @@
+# Start Spark if not running already, run only in the master machine
+---
+  # Check if daemon is alive
+  - name: Check if Spark is running
+    shell: "ps -ef | grep -i spark | grep -v grep | awk '{print $1}'"
+    args:
+      chdir: "{{ spark_home }}/current_spark/bin/"
+      executable: /bin/bash
+    ignore_errors: yes
+    changed_when: false
+    register: process_spark_running
+
+  # Start Spark daemon
+  - name: Start Spark
+    shell: ./start-all.sh
+    args:
+      chdir: "{{ spark_home }}/current_spark/sbin/"
+      executable: /bin/bash
+    async: 100
+    poll: 0
+    ignore_errors: yes
+    register: sout
+    when: process_spark_running.stdout == ""
+
+  # Show cqlsh_out
+  - name: Show sout
+    debug: 
+      var: sout

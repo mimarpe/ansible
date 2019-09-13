@@ -1,0 +1,37 @@
+# Start node_exporter if not running already
+---
+- name: Check if node_exporter is running
+  shell: "ps -ef | grep -i node_exporter | grep -v grep | awk '{print $2}'"
+  args:
+    executable: /bin/bash
+  ignore_errors: yes
+  changed_when: false
+  register: process_node_running
+
+- name: Start node_exporter
+  shell: >
+    nohup ./node_exporter 
+    --no-collector.arp 
+    --no-collector.bcache 
+    --no-collector.bonding 
+    --no-collector.edac 
+    --no-collector.entropy 
+    --no-collector.hwmon 
+    --no-collector.infiniband 
+    --no-collector.ipvs 
+    --no-collector.mdadm 
+    --no-collector.netclass 
+    --no-collector.nfs 
+    --no-collector.nfsd 
+    --no-collector.sockstat 
+    --no-collector.stat 
+    --no-collector.timex 
+    --no-collector.vmstat 
+    --no-collector.xfs 
+    --no-collector.zfs 
+    &
+  args:
+    chdir: "{{ cassandra_home }}/current_node_exporter/"
+    executable: /bin/bash
+  when: process_node_running.stdout == ""
+  

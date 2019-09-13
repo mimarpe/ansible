@@ -1,0 +1,1 @@
+main_seed: "{{ ansible_play_hosts | first }}"

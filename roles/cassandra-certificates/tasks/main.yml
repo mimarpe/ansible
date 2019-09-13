@@ -1,0 +1,83 @@
+--- 
+# THE CASSANDRA ROOTCA FILES MUST BE IN {{ cassandra_certificates_home }}
+- name: check rootCA-cert exists
+  stat:
+    path: "{{ cassandra_certificates_home }}/ca-cert"
+  register: cert
+
+- fail:
+    msg: "The ca-cert doesn't exist"
+  when: cert.stat.exists == False
+  
+- name: check rootCA-key exists
+  stat:
+    path: "{{ cassandra_certificates_home }}/ca-key"
+  register: key
+
+- fail:
+    msg: "The ca-key doesn't exist"
+  when: key.stat.exists == False
+    
+# Create truststore
+- name: Create truststore
+  shell: > 
+    keytool -keystore {{cassandra_certificates_home}}/server-truststore.jks -alias CARoot -importcert 
+    -file {{cassandra_certificates_home}}/ca-cert -keypass {{cassandra_ca_pw}} -storepass {{ cassandra_kt_pw }} -noprompt
+  args: 
+    executable: /bin/bash
+
+# For each node  
+# Create keystore
+- name: Create keystore
+  shell: > 
+    keytool -genkeypair -keyalg RSA -alias {{item}} -keystore {{cassandra_certificates_home}}/{{item}}.jks 
+    -keypass {{ cassandra_kt_pw }} -storepass {{ cassandra_kt_pw }} -validity 730 -keysize 2048 
+    -dname "CN={{item}}, OU=CassandraCluster, O=Org, C=CH"
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+  
+# Creation request CSR
+- name: Creation request CSR
+  shell: > 
+    keytool -keystore {{cassandra_certificates_home}}/{{item}}.jks -alias {{item}} -certreq 
+    -file {{cassandra_certificates_home}}/{{item}}_cert_sr -keypass {{ cassandra_kt_pw }} -storepass {{ cassandra_kt_pw }}
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+
+# Signer certificat
+- name: Signer certificat
+  shell: > 
+    openssl x509 -req -CA {{cassandra_certificates_home}}/ca-cert -CAkey {{cassandra_certificates_home}}/ca-key
+    -in {{cassandra_certificates_home}}/{{item}}_cert_sr -out {{cassandra_certificates_home}}/{{item}}_cert_signed 
+    -days 730 -CAcreateserial -passin pass:{{cassandra_ca_pw}}
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+  
+# Attacher certificat rootCA au keystore
+- name: Attach CA certificate au keystore
+  shell: > 
+    keytool -keystore {{cassandra_certificates_home}}/{{item}}.jks -alias CARoot -import -file {{cassandra_certificates_home}}/ca-cert 
+    -noprompt -keypass {{ cassandra_kt_pw }} -storepass {{ cassandra_kt_pw }}
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+  
+# Attacher certificat node au keystore
+- name: Attacher certificat node au keystore
+  shell: > 
+    keytool -keystore {{cassandra_certificates_home}}/{{item}}.jks -alias {{item}} -import 
+    -file {{cassandra_certificates_home}}/{{item}}_cert_signed -keypass {{ cassandra_kt_pw }} -storepass {{ cassandra_kt_pw }}
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+  
+# Remove temporary files
+- name: Remove temporary files
+  shell: > 
+    rm -f {{cassandra_certificates_home}}/*_cert_signed {{cassandra_certificates_home}}/*_cert_sr {{cassandra_certificates_home}}/*.srl 
+  args: 
+    executable: /bin/bash    
+  

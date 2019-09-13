@@ -1,0 +1,49 @@
+--- 
+# Creates volume folder
+- name: Creates volume folder
+  file:
+    path: "{{ docker_volumes_dir }}/{{alertmanager_instance_name}}_volume/"
+    state: directory
+    mode: 0755
+
+# Copy alertmanager config
+- name: Copy alertmanager config
+  template:
+    src: alertmanager.yml.j2
+    dest: "{{ alertmanager_home }}/alertmanager.yml"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+
+# Get user and group ids
+- name: get uid
+  command: id -u
+  register: uid
+  
+- name: get gid
+  command: id -g
+  register: gid
+  
+# Choose the alertmanager peer
+- name: Choose the alertmanager peer
+  set_fact:
+    alertmanager_peer: "{{ ansible_play_hosts[0] }}:{{ alertmanager_port }}"
+  when: inventory_hostname == ansible_play_hosts[1]
+
+# Run docker alertmanager container
+- name: Create alertmanager container
+  command: >
+    docker run 
+    -d 
+    {{ alertmanager_net }} 
+    -v {{ alertmanager_home }}/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    -v {{ docker_volumes_dir }}/{{alertmanager_instance_name}}_volume/:/alertmanager 
+    --name={{alertmanager_instance_name}} 
+    --user {{uid.stdout}}:{{gid.stdout}} 
+    {{ alertmanager_image }} 
+    --config.file=/etc/alertmanager/alertmanager.yml
+    --cluster.peer={{ alertmanager_peer }}
+    --web.listen-address=:{{alertmanager_instance_port}}
+    --web.external-url=https://{{ env_domain }}.domain.com/alertmanager 
+    --web.route-prefix="/"
+    

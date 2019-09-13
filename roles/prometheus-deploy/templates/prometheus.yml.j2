@@ -1,0 +1,116 @@
+global:
+  scrape_interval:     {{ prometheus_scrape }}
+  evaluation_interval: {{ prometheus_evaluation }}
+  external_labels:
+    dc: {{ prometheus_dc }}
+
+rule_files:
+  - /etc/prometheus/alert.rules
+
+alerting:
+  alert_relabel_configs:
+    - source_labels: [dc]
+      regex: (.+)\d+[a-z]*
+      target_label: dc
+  
+  alertmanagers:
+    - scheme: https
+
+      tls_config:
+        insecure_skip_verify: true
+
+      basic_auth:
+        username: opsmaster
+        password: {{ alertmanager_secret }}
+      
+      static_configs:
+      - targets:
+{% for item in alertmanager_hosts %}
+        - '{{ item }}:9093'
+{% endfor %}
+
+scrape_configs:
+{% for item in groups['dbnodes'] %}
+  - job_name: '{{ item }}'
+    static_configs:
+      - targets: ['{{ item }}:8090', '{{ item }}:9100']
+        labels:
+          alias: {{ item }}
+{% endfor %}
+
+{% for item in groups['nondbnodes'] %}
+  - job_name: '{{ item }}'
+    static_configs:
+      - targets: ['{{ item }}:9100']
+        labels:
+          alias: {{ item }}
+{% endfor %}
+
+{% for item in ansible_play_hosts %}
+  - job_name: 'node_{{ item }}'
+    scheme: https
+    metrics_path: /node
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+      - targets: ['{{ item }}:{{prometheus_front_port}}']
+        labels:
+          alias: node_{{ item }}
+{% endfor %}
+
+{% for item in ansible_play_hosts %}
+  - job_name: 'prom_{{ item }}'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    basic_auth:
+      username: opsmaster
+      password: {{ prometheus_pw }}
+    static_configs:
+      - targets: ['{{ item }}:{{prometheus_front_port}}']
+        labels:
+          alias: prometheus_{{ item }}
+{% endfor %}
+
+  - job_name: 'blackbox_https'
+    scrape_interval: "60s"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+{% for monithost in ansible_play_hosts %}
+{% for endpointm in blackbox_monitoring_points %}
+        - https://{{monithost}}:{{endpointm}}
+{% endfor %}
+{% endfor %}
+{% for tomcat in groups['tomcatnodes'] %}
+{% for endpointt in hostvars[tomcat].endpoints %}
+        - https://{{tomcat}}:{{endpointt}}
+{% endfor %}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: {{inventory_hostname}}:{{blackbox_port_exposed}}  # Blackbox exporter.
+        
+  - job_name: 'blackbox_tcp'
+    scrape_interval: "60s"
+    metrics_path: /probe
+    params:
+      module: [tcp]
+    static_configs:
+      - targets:
+{% for item in groups['dbnodes'] %}
+        - {{item}}:7001  # Target to probe
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: {{inventory_hostname}}:{{blackbox_port_exposed}}  # Blackbox exporter.

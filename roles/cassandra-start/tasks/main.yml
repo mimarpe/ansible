@@ -1,0 +1,32 @@
+# Start Cassandra if not running already
+---
+  # Check if daemon is alive
+  - name: Check if Cassandra is running
+    shell: "ps -p `cat cassandra.pid` --no-headers | awk '{print $1}'"
+    args:
+      chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+      executable: /bin/bash
+    ignore_errors: yes
+    changed_when: false
+    register: process_cassandra_running
+
+  # Start Cassandra daemon
+  - name: Start Cassandra
+    shell: > 
+      CASSANDRA_HOME={{ cassandra_home }}/current_cassandra/
+      CASSANDRA_CONF={{ cassandra_home }}/current_cassandra/conf/ 
+      {{ cassandra_home }}/current_cassandra/bin/cassandra 
+      {{ cassandra_extra_opts }} -p cassandra.pid
+    args:
+      chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+      executable: /bin/bash
+    async: 100
+    poll: 0
+    ignore_errors: yes
+    register: sout
+    when: process_cassandra_running.stdout == ""
+
+  # Show cqlsh_out
+  - name: Show sout
+    debug: 
+      var: sout

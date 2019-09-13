@@ -1,0 +1,32 @@
+prometheus_instance_name: prometheus
+prometheus_instance_port: 19090
+prometheus_front_port: 9090
+prometheus_image: prom/prometheus
+prometheus_home: /home/{{ansible_ssh_user}}
+#prometheus_rentention_time: 12m
+#--storage.tsdb.retention.time={{prometheus_rentention_time}}
+prometheus_retention_size: 120GB
+prometheus_net: --net=host
+#prometheus_net: -p {{ prometheus_instance_port }}:{{ prometheus_instance_port }}
+
+prometheus_scrape: 10s
+prometheus_evaluation: 10s
+
+blackbox_port_exposed: 8090
+
+prometheus_dc: dc-{{ inventory_hostname }}
+alertmanager_hosts: "{{ ansible_play_hosts }}"
+alertmanager_secret: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          63653366313931666336353731323633323962333235656630356162626437363132386364386437
+          6666616136383464623138353930373133623535373534390a613437636563386162383430386436
+          36313862376232613866356532613336363033653766326364646263313331616335363133613332
+          3862643731616562660a333239323266323237636634666234383037353262316432303263396664
+          6532
+          
+blackbox_monitoring_points:
+  - 9090
+  - 3000
+  - 9093
+  - 8080/webui
+  

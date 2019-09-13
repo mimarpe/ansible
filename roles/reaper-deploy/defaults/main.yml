@@ -1,0 +1,10 @@
+reaper_instance_name: reaper
+reaper_instance_port: 18080
+reaper_instance_port_s: 8082
+reaper_image: thelastpickle/cassandra-reaper
+reaper_home: /home/{{ansible_ssh_user}}
+reaper_net: --net=host
+#reaper_net: -p {{ reaper_instance_port }}:{{ reaper_instance_port }} -p {{ reaper_instance_port_s }}:{{ reaper_instance_port_s }} 
+
+reaper_cluster_name: "Cassandra {{ env_domain }} Cluster"
+reaper_contact_points: '["{{ groups[cassandranodes][0] }}", "{{ groups[cassandranodes][1] }}", "{{ groups[cassandranodes][2] }}"]'

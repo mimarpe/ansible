@@ -1,0 +1,17 @@
+---
+- hosts: dbnodes
+  gather_facts: no
+  
+  roles:
+    - role: node-exporter-setup
+      tags: [ never, node ]
+    - role: cassandra-exporter-setup
+      tags: [ never, cassandra ]
+    - role: node-exporter-start
+      tags: [ never, node_start ]
+    - role: cassandra-exporter-start
+      tags: [ never, cassandra_start ]
+      
+      #when:
+      #  - '"cassandra" in ansible_run_tags'
+      #  - '"start" in ansible_run_tags'

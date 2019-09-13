@@ -1,0 +1,16 @@
+---
+# Download node_exporter
+- name: Download tarball and check md5
+  get_url:
+    url: "{{ custom_files_repo_url }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "{{ cassandra_home }}/node_exporter.tar.gz"
+
+ # Install node_exporter    
+- unarchive: src="{{ cassandra_home }}/node_exporter.tar.gz" dest="{{ cassandra_home }}/" copy=no
+
+# Create link
+- name: Create symlink to node_exporter
+  file:
+    src: "node_exporter-{{ node_exporter_version }}.linux-amd64/"
+    dest: "{{ cassandra_home }}/current_node_exporter"
+    state: link  

@@ -1,0 +1,9 @@
+cassandra.host={{ ansible_play_hosts | first }}
+data.keyspace=ks1
+results.keyspace=ks1
+cassandra.username=opsmaster
+cassandra.password={{ spark_opsmaster_pw }}
+percentiles_step=5
+stat.limit=100000
+jobs.home.dir={{ spark_home }}/current_spark/work/
+stat.row.size=100000

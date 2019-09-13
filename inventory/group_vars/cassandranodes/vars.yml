@@ -1,0 +1,7 @@
+cassandra_cluster_name: "Cassandra {{env_domain}} Cluster"
+cassandra_version: 3.11.4
+cassandra_extra_opts: 
+# -e when starting cassandra in elassadra cluster enables elastic search
+cassandra_url_download: "{{ custom_files_repo_url }}/apache-cassandra-{{ cassandra_version }}-bin.tar.gz"
+cassandra_installation_type: apache-cassandra
+replication_strategy: "'DC1':1, 'DC2':1,'DC3':1"

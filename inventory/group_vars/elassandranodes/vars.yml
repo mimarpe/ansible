@@ -1,0 +1,7 @@
+cassandra_cluster_name: "FullText {{env_domain}} Cluster"
+cassandra_version: 5.5.0.10
+cassandra_extra_opts: -e
+# -e when starting cassandra in elassadra cluster enables elastic search
+cassandra_url_download: "{{ custom_files_repo_url }}/elassandra-{{ cassandra_version }}.tar.gz"
+cassandra_installation_type: elassandra
+replication_strategy: "'DC1':3"

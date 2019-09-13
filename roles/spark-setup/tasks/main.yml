@@ -1,0 +1,79 @@
+--- 
+# Create folder for Spark    
+- name: Creates directory for Spark
+  file: path="{{ spark_home }}" state=directory    
+
+# Check spark exists       
+- name: Check if spark exists already
+  stat: path="{{ spark_home }}/current_spark/conf/application.properties"
+  register: spark_conf
+        
+# Download Spark
+- name: Download tarball and check md5
+  get_url:
+    url: "{{ spark_url_download }}"
+    dest: "{{ spark_home }}/{{ spark_package }}"
+    checksum: md5:{{ spark_md5 }}
+    
+# Install Cassandra    
+- unarchive: src="{{ spark_home }}/{{ spark_package }}" dest="{{ spark_home }}/" copy=no
+  when: spark_conf.stat.exists == False
+    
+# Create link
+- name: Create symlink to Spark
+  file:
+    src: "spark-{{ spark_version }}-bin-hadoop{{ hadoop_version }}/"
+    dest: "{{ spark_home }}/current_spark"
+    state: link
+
+# Create folder for spark-jobs    
+- name: Creates directory for Spark
+  file: path="{{ spark_home }}/current_spark/work" state=directory 
+     
+# Download spark-jobs
+- name: Download spark-jobs
+  get_url:
+    url: "{{ spark_jobs_url }}"
+    dest: "{{ spark_home }}/current_spark/work/spark-jobs-{{ spark_jobs_version }}.jar"
+    
+# Create link
+- name: Create symlink to spark-jobs
+  file:
+    src: "{{ spark_home }}/current_spark/work/spark-jobs-{{ spark_jobs_version }}.jar"
+    dest: "{{ spark_home }}/current_spark/work/spark-jobs.jar"
+    state: link
+
+# Add ports to config
+- name: Add ports to config for master
+  lineinfile:
+    path: "{{ spark_home }}/current_spark/conf/spark-env.sh"
+    line: 'export SPARK_MASTER_WEBUI_PORT={{spark_port_master}}'
+    create: yes
+    mode: 0755
+- name: Add ports to config for worker
+  lineinfile:
+    path: "{{ spark_home }}/current_spark/conf/spark-env.sh"
+    line: 'export SPARK_WORKER_WEBUI_PORT={{spark_port_worker}}'
+    
+# Add WORKER user and pw 
+- name: Add worker opts
+  lineinfile:
+    path: "{{ spark_home }}/current_spark/conf/spark-env.sh"
+    line: 'export SPARK_WORKER_OPTS="$SPARK_WORKER_OPTS -Dspark.cassandra.auth.username=opsmaster -Dspark.cassandra.auth.password={{ spark_opsmaster_pw }}"'
+
+# List of slaves
+- name: List of slaves
+  lineinfile:
+    path: "{{ spark_home }}/current_spark/conf/slaves"
+    line: '{{ item }}' 
+    create: yes
+    mode: 0644
+  with_items: "{{ groups['dbnodes'] }}"
+
+# Copy application properties
+- name: Copy application properties
+  template:
+    src: application.properties.j2
+    dest: "{{ spark_home }}/current_spark/conf/application.properties"
+    mode: 0644
+    

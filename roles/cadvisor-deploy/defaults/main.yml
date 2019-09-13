@@ -1,0 +1,7 @@
+cadvisor_instance_name: cadvisor
+cadvisor_instance_port: 8080
+cadvisor_instance_port_published: 8081
+cadvisor_image: google/cadvisor:latest
+cadvisor_home: /home/{{ansible_ssh_user}}
+#cadvisor_net: --net=host
+cadvisor_net: -p {{ cadvisor_instance_port_published }}:{{ cadvisor_instance_port }} 

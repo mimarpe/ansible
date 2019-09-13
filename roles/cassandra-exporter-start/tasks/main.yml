@@ -1,0 +1,16 @@
+# Start cassandra_exporter if not running already
+---
+- name: Check if cassandra_exporter is running
+  shell: "ps -ef | grep -i cassandra_exporter | grep -v grep | awk '{print $2}'"
+  args:
+    executable: /bin/bash
+  ignore_errors: yes
+  changed_when: false
+  register: process_cassandra_running
+
+- name: Start cassandra_exporter
+  shell: "nohup java -jar cassandra_exporter.jar config_cassandra_exporter.yml &"
+  args:
+    chdir: "{{ cassandra_home }}/current_exporter/"
+    executable: /bin/bash
+  when: process_cassandra_running.stdout == ""

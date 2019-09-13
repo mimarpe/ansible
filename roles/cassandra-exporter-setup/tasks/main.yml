@@ -1,0 +1,34 @@
+---
+# Create folder for cassandra-exporter    
+- name: Creates directory for cassandra-exporter
+  file: path="{{ cassandra_home }}/cassandra_exporter-{{ cassandra_exporter_version }}" state=directory    
+    
+# Create link
+- name: Create symlink to cassandra-exporter
+  file:
+    src: "cassandra_exporter-{{ cassandra_exporter_version }}/"
+    dest: "{{ cassandra_home }}/current_exporter"
+    state: link    
+    
+# Download cassandra-exporter
+- name: Download jar and check md5
+  get_url:
+    url: "{{ custom_files_repo_url }}/cassandra_exporter-{{ cassandra_exporter_version }}-all.jar"
+    dest: "{{ cassandra_home }}/cassandra_exporter-{{ cassandra_exporter_version }}/cassandra_exporter-{{ cassandra_exporter_version }}-all.jar"
+    checksum: md5:{{ cassandra_exporter_md5 }}
+    
+# Create link
+- name: Create symlink to cassandra-exporter jar
+  file:
+    src: "cassandra_exporter-{{ cassandra_exporter_version }}-all.jar"
+    dest: "{{ cassandra_home }}/current_exporter/cassandra_exporter.jar"
+    state: link
+
+# Configuration file
+- name: Copy configuration file
+  template:
+    src: config_cassandra_exporter.yml.j2
+    dest: "{{ cassandra_home }}/current_exporter/config_cassandra_exporter.yml"
+    owner: "{{ ansible_ssh_user }}"
+    group: ged
+    mode: 0400

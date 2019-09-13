@@ -1,0 +1,219 @@
+groups:
+
+# RULES FOR MACHINE METRICS
+- name: alerting_rules_machine
+  rules:
+
+  # Alert for any instance that is unreachable
+  - alert: InstanceDown
+    expr: up == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.instance }} down"
+      description: "{{ $labels.instance }} is down."
+  
+  # Alert for any instance that uses over 80% CPU
+  - alert: CpuUsage
+    expr: (1 - avg by(job)(irate(node_cpu_seconds_total{mode='idle'}[5m]))) * 100 > 80
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high CPU usage"
+      description: "{{ $labels.job }}'s CPU usage has exceeded the 80% threshold with a load value of {{ $value }}."
+
+  # Alert for any instance that uses over 80% memory 
+  - alert: MemoryFree
+    expr: (node_memory_MemTotal_bytes - node_memory_MemFree_bytes - node_memory_Cached_bytes) / (node_memory_MemTotal_bytes ) * 100  > 80
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high memory usage"
+      description: "{{ $labels.job }} has more than 80% of its memory used."
+      
+  # Alert for any instance that uses over 80% memory for 
+  - alert: IoUtilVarOpt
+    expr: irate(node_disk_io_time_seconds_total{device="dm-10"}[5m])*100  > 80
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high ioutil"
+      description: "{{ $labels.job }} has more than 80% ioutil on dm-10 (/var/opt/): {{ $value }}."
+      
+    # Alert for any instance that has over 80% ioutil for
+  - alert: IoUtilData
+    expr: irate(node_disk_io_time_seconds_total{device="dm-11"}[5m])*100  > 80
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high ioutil"
+      description: "{{ $labels.job }} has more than 80% ioutil on dm-11 (/data): {{ $value }}."
+
+  # Alert for any instance that uses over 80% disk on /data/cassandra/ 
+  - alert: DiskSpaceFreeData
+    expr: node_filesystem_free_bytes{mountpoint="/data/cassandra"} / node_filesystem_size_bytes{mountpoint="/data/cassandra"} * 100 < 20
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} is low on disk space"
+      description: "{{ $labels.job }} has only {{ $value }}% free."
+      
+  # Alert for any instance that uses over 80% disk on /var/opt/cassandra/ 
+  - alert: DiskSpaceFreeVarOpt
+    expr: node_filesystem_free_bytes{mountpoint="/var/opt/cassandra"} / node_filesystem_size_bytes{mountpoint="/var/opt/cassandra"} * 100 < 20
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} is low on disk space"
+      description: "{{ $labels.job }} has only {{ $value }}% free."
+      
+  # Alert for any instance that has over 0.8Gbps in 
+  - alert: InetIn
+    expr: irate(node_network_receive_bytes_total{device="eth0"}[5m]) > 100000000
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high incoming traffic"
+      description: "{{ $labels.job }} has almost 1Gbps in: {{ $value }}."
+      
+  # Alert for any instance that has over 0.8Gbps out 
+  - alert: InetOut
+    expr: irate(node_network_transmit_bytes_total{device="eth0"}[5m]) > 100000000
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high outgoing traffic"
+      description: "{{ $labels.job }} has almost 1Gbps out: {{ $value }}."
+
+# RULES FOR CASSANDRA METRICS
+- name: alerting_rules_cassandra
+  rules:
+  
+  # Alert for any instance that has over 80% heap utilisation
+  - alert: HeapUsage
+    expr: cassandra_stats{name="java:lang:memory:heapmemoryusage:used"} / ignoring(name) cassandra_stats{name="java:lang:memory:heapmemoryusage:max"} * 100 > 80
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.job }} has high Heap utilisation"
+      description: "{{ $labels.job }} has over 80% Heap memory used: {{ $value }}."
+
+  # Alert for any Cassandra instance that is unreachable
+  - alert: CassandraNodesDown
+    expr: max(cassandra_stats{name="org:apache:cassandra:net:failuredetector:downendpointcount"}) by (cluster) > 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "There are Cassandra instances down"
+      description: "Some Cassandra instance in cluster {{ $labels.cluster }} has been down: {{ $value }} instance/s."
+      
+  # Alert for Cassandra timeouts
+  - alert: Timeouts
+    expr: sum by (job,cluster)(irate(cassandra_stats{name=~"org:apache:cassandra:metrics:clientrequest:.*:timeouts:oneminuterate"}[5m])) > 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Cassandra instance is having timeouts"
+      description: "Timeout counter in {{ $labels.job }} active: {{ $value }}."
+      
+  # Alert for Cassandra unavailable
+  - alert: Unavailables
+    expr: sum by (job,cluster)(irate(cassandra_stats{name=~"org:apache:cassandra:metrics:clientrequest:.*:unavailables:oneminuterate"}[5m])) > 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Cassandra instance is having unavailable"
+      description: "Unavailable counter in {{ $labels.job }} active: {{ $value }}."
+
+  # Alert for Cassandra exceptions
+  - alert: Exceptions
+    expr: irate(cassandra_stats{name=~"org:apache:cassandra:metrics:storage:exceptions:count"}[5m]) > 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Cassandra instance is having exceptions"
+      description: "Exceptions counter in {{ $labels.job }} active: {{ $value }}."
+      
+  # Alert for Cassandra connection timeouts
+  - alert: ConnectionTimeouts
+    expr: sum(cassandra_stats{name=~"org:apache:cassandra:metrics:connection:totaltimeouts:oneminuterate"}) by (cluster) > 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Cassandra instance is having connection timeouts"
+      description: "Connection timeouts counter in {{ $labels.job }} active: {{ $value }}."
+      
+  # Alert for Cassandra dropped messages
+  - alert: DroppedMessages
+    expr: sum by (job,cluster) (cassandra_stats{name="org:apache:cassandra:metrics:droppedmessage:request_response:dropped:oneminuterate"}) > 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Cassandra instance is having dropped messages"
+      description: "Dropped messages counter in {{ $labels.job }} active: {{ $value }}."
+      
+  # Alert for Cassandra pending compactions
+  - alert: PendingCompactions
+    expr: cassandra_stats{name=~"org:apache:cassandra:metrics:compaction:pendingtasks:value"} > 20
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Cassandra instance is cummulating pending compactions"
+      description: "Pending compactions are spiking in instance {{ $labels.job }}: {{ $value }}."
+      
+# RULES FOR ENDPOINTS AND CERTIFICATE CHECKS
+- name: alerting_rules_blackbox
+  rules: 
+  - alert: CertificateExpirationHttps
+    expr: probe_ssl_earliest_cert_expiry{job="blackbox_https"} - time() < 86400 * 30 
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "The certificate of the host is about to expire"
+      description: "The certificate of the host for the HTTPS service will expire in less than 30 days."
+      
+  - alert: CertificateExpirationTcp
+    expr: probe_ssl_earliest_cert_expiry{job="blackbox_tcp"} - time() < 86400 * 30 
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "The certificate of the host is about to expire"
+      description: "The certificate of the host for the Cassandra TLS service will expire in less than 30 days."
+      
+  - alert: MissingEndpointHttps
+    expr: absent(probe_ssl_earliest_cert_expiry{job="blackbox_https"})
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "The endpoint is not responding (not sending metrics back)"
+      description: "The HTTPS service is offline."
+      
+  - alert: MissingEndpointTcp
+    expr: absent(probe_ssl_earliest_cert_expiry{job="blackbox_tcp"})
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "The endpoint is not responding (not sending metrics back)"
+      description: "The TCP service is offline."
+  

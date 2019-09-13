@@ -1,0 +1,17 @@
+---
+# Run docker cadvisor container
+- name: Create cadvisor container
+  command: >
+    docker run 
+    --volume=/:/rootfs:ro 
+    --volume=/var/run:/var/run:rw 
+    --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro 
+    --volume=/var/lib/docker/:/var/lib/docker:ro 
+    --volume=/dev/disk/:/dev/disk:ro 
+    --privileged=true 
+    --volume=/cgroup:/cgroup:ro 
+    --name={{cadvisor_instance_name}} 
+    --detach=true 
+    {{ cadvisor_net }} 
+    {{ cadvisor_image }}
+  

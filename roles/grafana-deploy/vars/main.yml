@@ -1,0 +1,8 @@
+grafana_instance_name: grafana
+grafana_instance_port: 13000
+grafana_image: grafana/grafana
+grafana_home: /home/{{ansible_ssh_user}}
+grafana_smtp_from: The All-Seeing Eye
+grafana_smtp_address: opsmaster@domain.com
+grafana_smtp_host: smtp.domain.com:25
+grafana_net: --net=host

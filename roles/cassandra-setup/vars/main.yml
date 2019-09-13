@@ -1,0 +1,2 @@
+cassandra_seeds: "{{ansible_play_hosts[0]}},{{ansible_play_hosts[1]}},{{ansible_play_hosts[2]}}"
+cassandra_numtokens: 8

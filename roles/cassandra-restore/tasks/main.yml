@@ -1,0 +1,256 @@
+# Create file list from backup
+# Take last archive (if diff < 40%?)
+# Remove files not in the list
+# Take lastest backup
+--- 
+# Stop Cassandra
+- name: stop Cassandra
+  include_role: 
+    name: cassandra-stop
+         
+# Delete commitlog, hints, saved_caches, data
+- name: delete commitlog, hints, saved_caches
+  shell: rm -rf {{ cassandra_home }}/current_cassandra/data/commitlog/* {{ cassandra_home }}/current_cassandra/data/hints/* {{ cassandra_home }}/current_cassandra/data/saved_caches/* {{ cassandra_data_dir }}/*
+  args:
+    executable: /bin/bash
+    warn: false
+  
+# Create file list from backup
+- name: Create file list from backup
+  shell: dsmc q ba {{ cassandra_data_dir }}/ -detail -filesonly | awk 'NR > 13 { print }' > {{ cassandra_data_dir }}/list_files_backup
+  args:
+    executable: /bin/bash
+    warn: false
+      
+# Retrieve data from TSM
+- name: Retrieve data
+  shell:  "{{ command_retrieve }} {{ cassandra_data_dir }}/ {{ cassandra_data_dir }}/"
+  args: 
+    executable: /bin/bash
+  register: dsmc_out_rt
+  failed_when: dsmc_out_rt.rc > 8
+  
+# Show retrieve outs
+- name: Show retrieve results
+  debug: 
+    var: dsmc_out_rt
+
+# Check result restore
+- name: Check result restore
+  pause:
+    prompt: "Press return when checked result retrieve"
+
+# Remove files not in the initial backup list
+- name: Copy file diff cleanup script
+  template:
+    src: diff_remove.py.j2
+    dest: /home/{{ ansible_ssh_user }}/diff_remove.py
+    mode: 0755
+    
+# Run diff_remove script
+- name: Run diff_remove script
+  shell: python /home/{{ ansible_ssh_user }}/diff_remove.py > /home/{{ansible_ssh_user}}/diff_remove_out
+  args: 
+    executable: /bin/bash
+
+# Check removed files
+- name: Check removed files
+  pause:
+    prompt: "Press return when checked removed files"
+
+# Take latest backup - restore data from TSM
+- name: Restore data - latest backup
+  shell:  "{{ command_restore }} {{ cassandra_data_dir }}/ {{ cassandra_data_dir }}/"
+  args: 
+    executable: /bin/bash
+  register: dsmc_out_rt
+  failed_when: dsmc_out_rt.rc > 8
+  
+# Show restore outs
+- name: Show restore results
+  debug: 
+    var: dsmc_out_rt
+
+# Check result restore
+- name: Check result restore
+  pause:
+    prompt: "Press return when checked result restore"
+        
+# Load tokens file
+- name: Load tokens file
+  slurp:
+    src: "{{ cassandra_data_dir }}/tokens"
+  register: toks
+  
+# Check tokens
+- name: Check tokens
+  debug:
+    msg: "{{ toks.content | b64decode }}"
+    
+# Insert initial_tokens in cassandra.yml
+- name: Insert initial_tokens in cassandra.yml
+  replace: 
+    'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+    regexp="^(#\s)?initial_token:\s[^\n]*\n"
+    replace="initial_token: {{ toks.content | b64decode }}\n"
+    backup=yes'
+
+# Start Cassandra main seed
+- name: start Cassandra main seed
+  include_role: 
+    name: cassandra-start
+  when: inventory_hostname == main_seed
+         
+# Wait for Cassandra daemon to fully start main seed
+- name: wait for Cassandra daemon to fully start in main seed
+  pause:
+    prompt: "Press return when Cassandra startup has finished in {{ main_seed }}"
+    
+# Start Cassandra second seed
+- name: start Cassandra second seed
+  include_role: 
+    name: cassandra-start
+  when: inventory_hostname == second_seed
+         
+# Wait for Cassandra daemon to fully start second seed
+- name: wait for Cassandra daemon to fully start in second seed
+  pause:
+    prompt: "Press return when Cassandra startup has finished in {{ second_seed }}"
+    
+# Start Cassandra non seed
+- name: start Cassandra non seed
+  include_role: 
+    name: cassandra-start
+  when: inventory_hostname != main_seed and inventory_hostname != second_seed
+  loop_control:
+    pause: 5
+         
+# Wait for Cassandra daemon to fully start non seed
+- name: wait for Cassandra daemon to fully start in non seeds
+  pause:
+    prompt: "Press return when Cassandra startup has finished in non seeds"
+
+# Delete keyspace elastic_admin
+#- name: Delete keyspace elastic_admin
+#  shell: ./cqlsh {{inventory_hostname}} -u {{ cassandra_user }} -p {{ cassandra_pw }} -e "drop keyspace elastic_admin"
+#  args: 
+#    executable: /bin/bash
+#    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+#  when: cassandra_extra_opts == "-e" and inventory_hostname == main_seed
+  
+# Delete elastic_admin
+#- name: Delete elastic_admin
+#  shell: rm -rf {{ cassandra_data_dir }}/elastic_admin/
+#  args:
+#    executable: /bin/bash
+#  when: cassandra_extra_opts == "-e"
+    
+# Load schema on one node only and wait for replication
+- name: Load schema from full_schema.cql 
+  shell: ./cqlsh {{inventory_hostname}} -u {{ cassandra_user }} -p cassandra -f {{ cassandra_data_dir }}/full_schema.cql
+  args: 
+    executable: /bin/bash
+    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+  register: cqlsh_out
+  when: inventory_hostname == main_seed
+
+# Show cqlsh_out
+- name: Show cqlsh_out
+  debug: 
+    var: cqlsh_out
+
+# Wait for schema replication
+- name: wait for schema replication
+  pause:
+    prompt: "Press return when schema replication finishes"
+
+# Stop Cassandra
+- name: stop Cassandra
+  include_role: 
+    name: cassandra-stop
+    
+# Remove old db, crc32 and txt files, if exist
+- name: Remove old db, crc32 and txt files, if exist
+  shell: find {{ cassandra_data_dir }} -mindepth 3 -maxdepth 3 -type f \( -name "*.db" -o -name "*.crc32" -o -name "*.txt" \) | grep -v system | xargs rm -f
+  args: 
+    executable: /bin/bash
+    warn: false
+    
+# Remove .base_by_uuid folder
+- name: Remove .base_by_uuid folder
+  shell: find {{ cassandra_data_dir }} -mindepth 3 -maxdepth 3 -type d -name .base* | xargs rm -rf
+  args: 
+    executable: /bin/bash
+    warn: false
+        
+# Confirm db files deleted
+- name: Confirm db files deleted
+  pause:
+    prompt: "Press return when db files deleted"
+
+# Copy relocate_snapshot script
+- name: Copy relocate_snapshot script
+  template:
+    src: relocate_snapshot.py.j2
+    dest: /home/{{ ansible_ssh_user }}/relocate_snapshot.py
+    mode: 0755
+    
+# Run relocate_snapshot script
+- name: Run relocate_snapshot script
+  shell: python /home/{{ ansible_ssh_user }}/relocate_snapshot.py
+  args: 
+    executable: /bin/bash
+  register: py_out
+    
+# Check script errors?
+- name: Show py_out
+  debug: 
+    var: py_out
+
+# Move db files from opsmaster snapshot to the right directories
+- name: Move db files from opsmaster snapshot to the right directories
+  pause:
+    prompt: "Press return when moved db files from opsmaster snapshot to the right directories"
+
+# Start Cassandra main seed
+- name: start Cassandra main seed
+  include_role: 
+    name: cassandra-start
+  when: inventory_hostname == main_seed
+         
+# Wait for Cassandra daemon to fully start main seed
+- name: wait for Cassandra daemon to fully start in main seed
+  pause:
+    prompt: "Press return when Cassandra startup has finished in {{ main_seed }}"
+    
+# Start Cassandra second seed
+- name: start Cassandra second seed
+  include_role: 
+    name: cassandra-start
+  when: inventory_hostname == second_seed
+         
+# Wait for Cassandra daemon to fully start second seed
+- name: wait for Cassandra daemon to fully start in second seed
+  pause:
+    prompt: "Press return when Cassandra startup has finished in {{ second_seed }}"
+    
+# Start Cassandra non seed
+- name: start Cassandra non seed
+  include_role: 
+    name: cassandra-start
+  when: inventory_hostname != main_seed and inventory_hostname != second_seed
+  loop_control:
+    pause: 5
+    
+# Run cassandra-post-setup
+- name: Run cassandra-post-setup
+  include_role: 
+    name: cassandra-post-setup
+  vars:
+    insertions: false
+    
+# Alert for repair
+- name: alert for repair
+  debug:
+    msg: "RUN A CLUSTER-WISE FULL REPAIR!"
+    

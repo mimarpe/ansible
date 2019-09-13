@@ -1,0 +1,20 @@
+---
+- hosts: monitoringnodes
+  gather_facts: no
+  
+  roles:
+    - role: prometheus-deploy
+      tags: [ never, prometheus ]
+    - role: grafana-deploy
+      tags: [ never, grafana ]
+    - role: alertmanager-deploy
+      tags: [ never, alertmanager ]
+    - role: reaper-deploy
+      tags: [ never, reaper ]
+    - role: blackbox-deploy
+      tags: [ never, blackbox ]
+    - role: cadvisor-deploy
+      tags: [ never, cadvisor ]
+    - role: nginx-deploy
+      tags: [ never, nginx ]
+      

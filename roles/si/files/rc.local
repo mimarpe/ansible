@@ -1,0 +1,26 @@
+#!/bin/bash
+
+modprobe ipmi_devintf
+modprobe ipmi_si
+modprobe msr
+sleep 1
+chmod a+rw /dev/ipmi*
+
+echo deadline > /sys/block/sda/queue/scheduler
+echo 0 > /sys/block/sda/queue/rotational
+echo 8 > /sys/class/block/sda/queue/read_ahead_kb
+echo 1 > /sys/block/sda/queue/nomerges
+echo 256 > /sys/block/sda/queue/nr_requests
+
+echo 0 > /proc/sys/vm/zone_reclaim_mode
+
+echo never > /sys/kernel/mm/transparent_hugepage/defrag
+echo madvise > /sys/kernel/mm/transparent_hugepage/enabled
+
+swapoff -a
+
+setterm -blank 0 -powerdown 0
+
+service ntp restart
+
+exit 0

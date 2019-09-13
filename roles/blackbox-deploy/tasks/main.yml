@@ -1,0 +1,21 @@
+---
+# Copy blackbox config
+- name: Copy blackbox config
+  template:
+    src: blackbox.yml.j2
+    dest: "{{ blackbox_home }}/blackbox.yml"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+
+# Run docker blackbox container
+- name: Create blackbox container
+  command: >
+    docker run
+    -d
+    {{ blackbox_net}}
+    --name {{blackbox_instance_name}}
+    -v {{blackbox_home}}/blackbox.yml:/etc/blackbox/blackbox.yml
+    -v {{blackbox_home}}/CA/:/etc/blackbox/CA:ro
+    {{ blackbox_image }}
+    --config.file=/etc/blackbox/blackbox.yml

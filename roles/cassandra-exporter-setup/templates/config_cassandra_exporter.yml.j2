@@ -1,0 +1,102 @@
+host: localhost:7199
+ssl: False
+user: {{ cassandra_user }}
+password: {{ cassandra_pw }}
+listenPort: 8090
+blacklist:
+   # To profile the duration of jmx call you can start the program with the following options
+   # > java -Dorg.slf4j.simpleLogger.defaultLogLevel=trace -jar cassandra_exporter.jar config.yml --oneshot
+   #
+   # To get intuition of what is done by cassandra when something is called you can look in cassandra
+   # https://github.com/apache/cassandra/tree/trunk/src/java/org/apache/cassandra/metrics
+   # Please avoid to scrape frequently those calls that are iterating over all sstables
+
+   # Unaccessible metrics (not enough privilege)
+   - java:lang:memorypool:.*usagethreshold.*
+   
+   - java:lang:classloading:.*
+   
+   - java:lang:compilation:.*
+   
+   - java:lang:memorymanager:.*
+   - java:lang:memorypool:.*
+   
+   - java:lang:threading:.*
+   
+   - java:lang:runtime:.*
+   
+   - java:lang:operatingsystem:.*
+   
+   - java:nio:bufferpool:.*
+
+   # Leaf attributes not interesting for us but that are presents in many path
+   - .*:999thpercentile
+   - .*:95thpercentile
+   - .*:fifteenminuterate
+   - .*:fiveminuterate
+   - .*:durationunit
+   - .*:rateunit
+   - .*:stddev
+   - .*:meanrate
+   #- .*:mean
+   - .*:min
+
+   # Exceptions due to non stock Cassandra
+   - .*:currentlyblockedtasks:value
+
+   # Path present in many metrics but uninterresting
+   - .*:viewlockacquiretime:.*
+   - .*:viewreadtime:.*
+   - .*:cas[a-z]+latency:.*
+   - .*:colupdatetimedeltahistogram:.*
+
+   # Mostly for RPC, do not scrap them
+   - org:apache:cassandra:db:.*
+
+   # columnfamily is an alias for Table metrics
+   # https://github.com/apache/cassandra/blob/8b3a60b9a7dbefeecc06bace617279612ec7092d/src/java/org/apache/cassandra/metrics/TableMetrics.java#L162
+   - org:apache:cassandra:metrics:columnfamily:.*
+   
+   - org:apache:cassandra:metrics:keyspace:.*
+   
+   - org:apache:cassandra:auth:.*
+   
+   - org:apache:cassandra:internal:.*
+   
+   - org:apache:cassandra:clientrequestmetrics:.*
+   
+   - org:apache:cassandra:metrics:commitlog:.*
+   
+   - org:apache:cassandra:metrics:cql:.*
+   
+   - org:apache:cassandra:metrics:filecache:.*
+   
+   - org:apache:cassandra:metrics:indexcolumnfamily:.*
+   
+   - org:apache:cassandra:metrics:readrepair:.*
+   
+   - org:apache:cassandra:net:messagingservice:.*
+   
+   - org:apache:cassandra:request:.*
+   
+   - org:apache:cassandra:transport:.*
+
+   # Should we export metrics for system keyspaces/tables ?
+   - org:apache:cassandra:metrics:[^:]+:system[^:]*:.*
+   
+   - org:apache:cassandra:metrics:table:elastic[^:]*:.*
+
+   - org:apache:cassandra:metrics:table:opsmaster[^:]*:.*
+
+   # Don't scrap us
+   - com:criteo:nosql:.*
+
+maxScrapFrequencyInSec:
+  50:
+    - .*
+
+  # Refresh those metrics only every hour as it is costly for cassandra to retrieve them
+  3600:
+    - .*:snapshotssize:.*
+    - .*:estimated.*
+    - .*:totaldiskspaceused:.*

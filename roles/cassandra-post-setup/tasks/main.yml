@@ -1,0 +1,81 @@
+--- 
+# alter replication strategy on keyspaces
+- name: alter replication strategy on keyspaces
+  shell: > 
+    ./cqlsh {{inventory_hostname}} --ssl 
+    -e "alter keyspace {{ item }} with replication={ 'class' : 'NetworkTopologyStrategy', {{replication_strategy}} };"
+  args: 
+    executable: /bin/bash
+    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+  with_items:
+    - system_auth
+    - system_traces
+    - system_distributed
+  when: inventory_hostname == main_seed
+
+# alter replication strategy on extra keyspaces for elassandra  
+- name: alter replication strategy on extra keyspaces for elassandra
+  shell: > 
+    ./cqlsh {{inventory_hostname}} --ssl 
+    -e "alter keyspace {{ item }} with replication={ 'class' : 'NetworkTopologyStrategy', {{replication_strategy}} };"
+  args: 
+    executable: /bin/bash
+    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+  with_items:
+    - elastic_admin
+  when: cassandra_extra_opts == "-e" and inventory_hostname == main_seed  
+  
+# create opsmaster user
+- name: create opsmaster user
+  shell: > 
+    ./cqlsh {{inventory_hostname}} --ssl 
+    -e "CREATE USER opsmaster WITH PASSWORD '{{ cassandra_opsmaster_pw }}' SUPERUSER;"
+    # ALTER USER cassandra WITH PASSWORD 'password' NOSUPERUSER;
+  args: 
+    executable: /bin/bash
+    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+  ignore_errors: yes
+  when: inventory_hostname == main_seed
+  
+# alter cassandra user
+- name: alter cassandra user
+  shell: > 
+    ./cqlsh {{inventory_hostname}} --ssl 
+    -e "ALTER USER {{cassandra_user}} WITH PASSWORD '{{ cassandra_pw }}';"
+  args: 
+    executable: /bin/bash
+    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+  ignore_errors: yes
+  when: inventory_hostname == main_seed
+    
+# aliases in bashrc
+- name: aliases in bashrc
+  lineinfile:
+    dest: /home/{{ ansible_ssh_user }}/.bashrc
+    line: "alias {{ item.alias }}='{{ item.command }}'"
+    regexp: "^alias {{ item.alias }}="
+    state: present
+  loop:
+    - { alias: cdc, command: "cd {{ cassandra_home }}" }
+    - { alias: cdd, command: "cd {{ cassandra_data_dir }}" }
+    - { alias: l,  command: "ls -l" }
+    
+# variables in bash_profile
+- name: variables in bash_profile
+  lineinfile:
+    dest: /home/{{ ansible_ssh_user }}/.bash_profile
+    line: "export {{ item.var }}={{ item.value }}"
+    regexp: "^export {{ item.var }}="
+    state: present
+  loop:
+    - { var: CASSANDRA_HOME, value: "{{ cassandra_home }}/current_cassandra/" }
+    #- { var: CASSANDRA_CONF,  value: "{{ cassandra_home }}/current_cassandra/conf/" }
+    
+# Add cassandra bin to PATH
+- name: Add cassandra bin to PATH
+  replace: 
+    'dest=/home/{{ ansible_ssh_user }}/.bash_profile 
+    regexp="export PATH\n" 
+    replace="export PATH={{ cassandra_home }}/current_cassandra/bin/:$PATH\n" 
+    backup=yes'
+    

@@ -1,0 +1,4 @@
+archive_desc: "{{ ansible_date_time.date }}"
+command_backup: dsmc incremental 
+command_archive: dsmc archive -desc={{ archive_desc }}
+retention_policy: R7D

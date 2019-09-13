@@ -1,0 +1,63 @@
+http {
+    server {
+        listen {{ nginx_prometheus_instance_port }} ssl;
+
+        ssl_certificate /etc/nginx/nginx-selfsigned.crt;
+        ssl_certificate_key /etc/nginx/nginx-selfsigned.key;
+
+        location / {
+            auth_basic           "Prometheus";
+            auth_basic_user_file /etc/nginx/.htpasswd_prom;
+        
+            proxy_pass           http://localhost:{{ nginx_prometheus_back_port}}/;
+        }
+
+        location /node {
+            proxy_pass           http://localhost:9100/metrics;
+        }
+    }
+    
+    server {
+        listen {{ nginx_alertmanager_instance_port }} ssl;
+        
+        ssl_certificate /etc/nginx/nginx-selfsigned.crt;
+        ssl_certificate_key /etc/nginx/nginx-selfsigned.key;
+        
+        location / {
+            auth_basic           "AlertManager";
+            auth_basic_user_file /etc/nginx/.htpasswd_am;
+            
+            proxy_pass           http://localhost:{{ nginx_alertmanager_back_port}}/;
+        }
+    }
+    
+    server {
+        listen {{ nginx_reaper_instance_port }} ssl;
+        
+        ssl_certificate /etc/nginx/nginx-selfsigned.crt;
+        ssl_certificate_key /etc/nginx/nginx-selfsigned.key;
+        
+        location / {
+            auth_basic           "Cassandra-Reaper";
+            auth_basic_user_file /etc/nginx/.htpasswd_reaper;
+            
+            proxy_pass           http://localhost:{{ nginx_reaper_back_port}}/;
+        }
+    }
+    
+    server {
+        listen {{ nginx_grafana_instance_port }} ssl;
+        
+        ssl_certificate /etc/nginx/nginx-selfsigned.crt;
+        ssl_certificate_key /etc/nginx/nginx-selfsigned.key;
+        
+        location / {
+            auth_basic           "Grafana";
+            auth_basic_user_file /etc/nginx/.htpasswd_prom;
+            
+            proxy_pass           http://localhost:{{ nginx_grafana_back_port}}/;
+        }
+    }
+}
+ 
+events {}

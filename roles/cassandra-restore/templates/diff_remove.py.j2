@@ -1,0 +1,23 @@
+import os
+
+base_path = "{{ cassandra_data_dir }}/"
+lfn = base_path+'list_files_backup'
+no_remove = set()
+
+# read and parse file list coming from TSM
+with open(lfn) as f:
+  for line in f:
+    start = line.find(base_path)
+    if start > 0:
+      end = line.find("\n")
+      no_remove.add(line[start:end].strip())
+
+no_remove.add(lfn)
+
+# grep each file in the list of files and delete if not present
+for path, subdirs, files in os.walk(base_path):
+  for f in files:
+    name = os.path.join(path,f)
+    if name not in no_remove:
+      print name
+      os.unlink(name)

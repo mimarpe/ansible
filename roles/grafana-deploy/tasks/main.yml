@@ -1,0 +1,57 @@
+---
+# Creates volume folder
+- name: Creates volume folder
+  file:
+    path: "{{ docker_volumes_dir }}/{{grafana_instance_name}}_volume/"
+    state: directory
+
+# Get user and group ids
+- name: get uid
+  command: id -u
+  register: uid
+  
+- name: get gid
+  command: id -g
+  register: gid
+  
+# Create a folder to store the dashboards  
+- file: 
+    path: "{{ grafana_home }}/grafana_dashboards"
+    state: directory
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0755
+      
+# Copy the dashboards
+- name: Copy the dashboards
+  copy:
+    src: "{{ item }}"
+    dest: "{{ grafana_home }}/grafana_dashboards/"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - cassandra-dashboard.json
+    - nodes-dashboard.json
+    - prometheus-dashboard.json
+
+# Run docker grafana container
+- name: Create grafana container
+  command: >
+    docker run 
+    -d 
+    {{ grafana_net }} 
+    --name={{ grafana_instance_name }} 
+    -v {{ docker_volumes_dir }}/{{grafana_instance_name}}_volume/:/var/lib/grafana 
+    --user {{uid.stdout}}:{{gid.stdout}} 
+    -e "GF_AUTH_BASIC_ENABLED=false" 
+    -e "GF_AUTH_ANONYMOUS_ENABLED=true" 
+    -e "GF_AUTH_ANONYMOUS_ORG_ROLE=Admin"   
+    -e "GF_SERVER_HTTP_PORT={{ grafana_instance_port }}" 
+    -e "GF_SMTP_ENABLED=true" 
+    -e "GF_SMTP_HOST={{ grafana_smtp_host }}" 
+    -e "GF_SMTP_FROM_ADDRESS={{ grafana_smtp_address }}" 
+    -e "GF_SMTP_FROM_NAME={{ grafana_smtp_from }}" 
+    -e "GF_SMTP_SKIP_VERIFY=true" 
+    -e "GF_SERVER_ROOT_URL=https://{{env_domain}}.domain.com/grafana/"
+    {{ grafana_image }}

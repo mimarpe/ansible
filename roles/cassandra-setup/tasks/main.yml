@@ -1,0 +1,393 @@
+# Basic setup script to be run after getting root privileges (add_ssh_keys.yml)
+# ansible-playbook -i cassandra_hosts -l <newmachine> cassandra-elassandra-setup.yml
+--- 
+    # Create folder for Cassandra    
+    - name: Creates directory for Cassandra
+      file: path="{{ cassandra_home }}" state=directory    
+      
+    - name: Check if cassandra exists already
+      stat: path="{{ cassandra_home }}/current_cassandra/conf/cassandra.yaml"
+      register: cassandra_conf
+        
+    # Download Cassandra
+    - name: Download tarball and check md5
+      get_url:
+        url: "{{ cassandra_url_download }}"
+        dest: "{{ cassandra_home }}/{{ cassandra_installation_type }}.tar.gz"
+    
+    # Install Cassandra    
+    - unarchive: src="{{cassandra_home}}/{{ cassandra_installation_type }}.tar.gz" dest="{{ cassandra_home }}/" copy=no
+      when: cassandra_conf.stat.exists == False
+    
+    # Create link
+    - name: Create symlink to Cassandra
+      file:
+        src: "{{ cassandra_installation_type }}-{{ cassandra_version }}/"
+        dest: "{{ cassandra_home }}/current_cassandra"
+        state: link
+   
+    # Configuration files
+    - name: Copy system configuration files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        backup: yes
+      with_items:
+        #- { src: copy/90-max_map_count.conf , dest: /etc/sysctl.d/90-max_map_count.conf }
+        #- { src: copy/99-tcp-buffers.conf   , dest: /etc/sysctl.d/99-tcp-buffers.conf }
+        #- { src: copy/cassandra.conf        , dest: /etc/security/limits.d/cassandra.conf }
+        #- { src: copy/jvm.options           , dest: "{{ cassandra_home }}/current_cassandra/conf/jvm.options" }
+        - { src: files/jmxremote.access      , dest: "{{ cassandra_home }}/current_cassandra/conf/jmxremote.access" }
+        #- { src: files/jmxremote.password    , dest: "{{ cassandra_home }}/current_cassandra/conf/jmxremote.password" }
+        #- { src: copy/rc.local              , dest: /etc/rc.local }
+        
+    # jmxremote.password
+    - name: Copy jmxremote.password
+      template:
+        src: jmxremote.password.j2
+        dest: "{{ cassandra_home }}/current_cassandra/conf/jmxremote.password"
+        owner: "{{ ansible_ssh_user }}"
+        group: ged
+        mode: 0400
+
+    #https://tobert.github.io/pages/als-cassandra-21-tuning-guide.html
+
+    # Edit listen_address
+    - name: Replace listen_address
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="listen_address:\s[^\n]*\n" 
+        replace="listen_address: {{inventory_hostname}}\n" 
+        backup=yes'
+        
+    # Edit rpc_address
+    - name: Replace rpc_address
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="rpc_address:\s[^\n]*\n" 
+        replace="rpc_address: {{inventory_hostname}}\n" 
+        backup=no'
+        
+    # Edit start_rpc
+    - name: Enable rpc
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="start_rpc:\sfalse\n" 
+        replace="start_rpc: true\n" 
+        backup=no'
+    
+    # Edit num_tokens
+    - name: Replace num_tokens
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="num_tokens:\s\d+" 
+        replace="num_tokens: {{ cassandra_numtokens }}\n"
+        backup=no'
+    
+    # Edit cluster_name
+    - name: Replace cluster_name
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="cluster_name:\s[^\n]*\n" 
+        replace="cluster_name: \"{{ cassandra_cluster_name }}\"\n" 
+        backup=no'
+    
+    # Edit endpoint_snitch
+    - name: Replace endpoint_snitch
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="endpoint_snitch:\s[^\n]*\n" 
+        replace="endpoint_snitch: GossipingPropertyFileSnitch\n"
+        backup=no'
+        
+    # Edit seeds
+    - name: Replace seeds
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="seeds:\s[^\n]*\n" 
+        replace="seeds: \"{{ cassandra_seeds }}\"\n"
+        backup=no'
+        
+    # Edit authenticator
+    - name: Replace authenticator
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="authenticator:\s[^\n]*\n" 
+        replace="authenticator: PasswordAuthenticator\n"
+        backup=no'
+    
+    # Edit data_file_directories
+    - name: Replace data_file_directories
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\sdata_file_directories:\s[^\n]*\n" 
+        replace="data_file_directories:\n  - {{cassandra_data_dir}}\n"
+        backup=no'
+        
+    # Edit concurrent_reads
+    - name: Replace concurrent_reads
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="concurrent_reads:\s[^\n]*\n" 
+        replace="concurrent_reads: 256\n"
+        backup=no'
+
+    # Edit concurrent_writes
+    - name: Replace concurrent_writes
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="concurrent_writes:\s[^\n]*\n" 
+        replace="concurrent_writes: 128\n"
+        backup=no'
+        
+    # Edit concurrent_counter_writes
+    - name: Replace concurrent_counter_writes
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="concurrent_counter_writes:\s[^\n]*\n" 
+        replace="concurrent_counter_writes: 128\n"
+        backup=no'
+        
+    # Edit memtable_flush_writers
+    - name: Replace memtable_flush_writers
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="#memtable_flush_writers:\s[^\n]*\n" 
+        replace="memtable_flush_writers: 8\n"
+        backup=no'
+        
+    # Edit key_cache_size
+    - name: Replace key_cache_size
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="key_cache_size_in_mb:\s*\n" 
+        replace="key_cache_size_in_mb: 1024\n"
+        backup=no'
+        
+    # Edit server_encryption_options internode_encryption
+    - name: Replace server_encryption_options internode_encryption
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="internode_encryption:\snone\n" 
+        replace="internode_encryption: all\n"
+        backup=no'
+        
+    # Edit server_encryption_options keystore
+    - name: Replace server_encryption_options keystore
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="keystore:\sconf/\.keystore\n" 
+        replace="keystore: {{cassandra_home}}/current_cassandra/conf/{{inventory_hostname}}.jks\n"
+        backup=no'
+   
+    # Edit server_encryption_options keystore_password
+    - name: Replace server_encryption_options keystore_password
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="keystore_password:\scassandra\n" 
+        replace="keystore_password: {{cassandra_kt_pw}}\n"
+        backup=no'
+        
+    # Edit server_encryption_options truststore
+    - name: Replace server_encryption_options truststore
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="truststore:\sconf/\.truststore\n" 
+        replace="truststore: {{cassandra_home}}/current_cassandra/conf/server-truststore.jks\n"
+        backup=no'
+        
+    # Edit server_encryption_options truststore_password
+    - name: Replace server_encryption_options truststore_password
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="truststore_password:\scassandra\n" 
+        replace="truststore_password: {{cassandra_kt_pw}}\n"
+        backup=no'
+        
+    # Remove commented trustore (for client-to-node)
+    - name: Remove commented trustore (for client-to-node)
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="# truststore" 
+        replace="truststore"
+        backup=no'
+
+    # Edit server_encryption_options protocol
+    - name: Edit server_encryption_options protocol
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\sprotocol:\sTLS\n" 
+        replace="protocol: TLS\n"
+        backup=no'
+        
+    # Edit server_encryption_options algorithm
+    - name: Edit server_encryption_options algorithm
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\salgorithm:\sSunX509\n" 
+        replace="algorithm: SunX509\n"
+        backup=no'
+
+    # Edit server_encryption_options store_type
+    - name: Edit server_encryption_options store_type
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\sstore_type:\sJKS\n" 
+        replace="store_type: JKS\n"
+        backup=no'
+
+    # Edit server_encryption_options cipher_suites
+    - name: Edit server_encryption_options cipher_suites
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\scipher_suites" 
+        replace="cipher_suites"
+        backup=no'
+    
+    # Edit server_encryption_options require_client_auth
+    - name: Edit server_encryption_options require_client_auth
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\srequire_client_auth:\sfalse\n" 
+        replace="require_client_auth: true\n"
+        backup=no'
+
+    # Edit server_encryption_options require_endpoint_verification
+    - name: Edit server_encryption_options require_endpoint_verification
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\srequire_endpoint_verification:\sfalse\n" 
+        replace="require_endpoint_verification: false\n"
+        backup=no'
+
+    # Edit client_encryption_options enabled
+    - name: client_encryption_options enabled
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="client_encryption_options:\n\s\s\s\senabled:\sfalse\n" 
+        replace="client_encryption_options:\n    enabled: true\n" 
+        backup=no'
+                        
+    # Edit LOCAL_JMX
+    - name: Change LOCAL_JMX
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh 
+        regexp="LOCAL_JMX=yes\n" 
+        replace="LOCAL_JMX=no\n"
+        backup=yes'
+        
+    # Edit jmxremote.password location
+    - name: Replace jmxremote.password location
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh 
+        regexp="/etc/cassandra/jmxremote.password" 
+        replace="{{ cassandra_home }}/current_cassandra/conf/jmxremote.password"
+        backup=no'
+        
+    # Edit jmxremote.access line and location
+    - name: Replace jmxremote.access line and location
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh
+        regexp="\#JVM_OPTS=\"\$JVM_OPTS -Dcom.sun.management.jmxremote.access.file=/etc/cassandra/jmxremote.access"
+        replace="JVM_OPTS=\"$JVM_OPTS -Dcom.sun.management.jmxremote.access.file={{ cassandra_home }}/current_cassandra/conf/jmxremote.access"
+        backup=no'
+
+    # Create cassandra java tmpdir
+    - name: Create cassandra java tmpdir
+      file: 
+        path: "{{ cassandra_home }}/current_cassandra/tmp"
+        state: directory
+        mode: 0755
+             
+    # Edit jmxremote.access line and location
+    - name: Replace jmxremote.access line and location
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh
+        regexp="JVM_OPTS=\"\$JVM_OPTS \$JVM_EXTRA_OPTS"
+        replace="JVM_OPTS=\"$JVM_OPTS -Djava.io.tmpdir={{ cassandra_home }}/current_cassandra/tmp\" \nJVM_OPTS=\"$JVM_OPTS $JVM_EXTRA_OPTS"
+        backup=no'               
+    
+    # Read-only jmxremote.password    
+    - file: path={{ cassandra_home }}/current_cassandra/conf/jmxremote.password mode="400"
+
+    # Edit cassandra-rackdc.properties
+    - name: Replace dc
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-rackdc.properties
+        regexp="dc=[^\n]*\n"
+        replace="dc={{ cassandra_dc }}\n"
+        backup=yes'
+        
+    - name: Replace rack
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-rackdc.properties
+        regexp="rack=[^\n]*\n"
+        replace="rack={{ cassandra_rack }}\n"
+        backup=no'
+      
+    # Delete cassandra-topology.properties        
+    - name: stat cassandra-topology.properties
+      stat: path={{ cassandra_home }}/current_cassandra/conf/cassandra-topology.properties
+      register: topology_stat
+
+    - name: Rename cassandra-topology.properties
+      command: mv {{ cassandra_home }}/current_cassandra/conf/cassandra-topology.properties {{ cassandra_home }}/current_cassandra/conf/cassandra-topology.properties.orig
+      when: topology_stat.stat.exists
+      
+    # Edit elassandra.yml
+    - name: Replace cluster_name
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#cluster.name:\s[^\n]*\n"
+        replace="cluster.name: {{ cassandra_cluster_name }}\n"
+        backup=yes'
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace node name
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#node.name:\s[^\n]*\n"
+        replace="node.name: {{ inventory_hostname }}\n"
+        backup=no'
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace node rack
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#node.attr.rack:\s[^\n]*\n"
+        replace="node.attr.rack: {{ cassandra_rack }}\n"
+        backup=no'
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace path data
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#path.data:\s[^\n]*\n"
+        replace="path.data: {{ cassandra_data_dir }}\n"
+        backup=no'
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace path logs
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#path.logs:\s[^\n]*\n"
+        replace="path.logs: {{ cassandra_home }}/current_cassandra/logs\n"
+        backup=no'
+      when: cassandra_extra_opts == "-e"
+
+    - name: Replace network host
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#network.host:\s[^\n]*\n"
+        replace="network.host: {{ ansible_default_ipv4.address }}\n"
+        backup=no'
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace http port
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+        regexp="\#http.port:\s[^\n]*\n"
+        replace="http.port: 9200\n"
+        backup=no'
+      when: cassandra_extra_opts == "-e"
+

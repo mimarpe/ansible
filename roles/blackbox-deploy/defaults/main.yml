@@ -1,0 +1,7 @@
+blackbox_instance_name: blackbox
+blackbox_instance_port_published: 8090
+blackbox_instance_port: 9115
+blackbox_image: prom/blackbox-exporter
+blackbox_home: /home/{{ansible_ssh_user}}
+#blackbox_net: --net=host
+blackbox_net: -p {{ blackbox_instance_port_published }}:{{ blackbox_instance_port }} 
