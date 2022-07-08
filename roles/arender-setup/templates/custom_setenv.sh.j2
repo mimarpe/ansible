@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#export ARENDER_DFS_JVM_ARGS="$ARENDER_DFS_JVM_ARGS -javaagent:{{ arender_home }}/prometheus/jmx_prometheus_javaagent-{{jmx_exporter_version}}.jar=8091:/var/opt/arender/prometheus/arender.yml"
+export ARENDER_BROKER_JVM_ARGS="$ARENDER_BROKER_JVM_ARGS -Dlogging.config=file:/var/opt/arender/renditionService/modules/RenditionEngine/logback-spring.xml"
+export ARENDER_PDFBOX_JVM_ARGS="$ARENDER_PDFBOX_JVM_ARGS -javaagent:{{ arender_home }}/prometheus/jmx_prometheus_javaagent-{{jmx_exporter_version}}.jar=8090:/var/opt/arender/prometheus/arender.yml -Dlogging.config=file:/var/opt/arender/renditionService/modules/PDFBoxEngine/logback-spring.xml"
+export ARENDER_JNIRENDERER_JVM_ARGS="$ARENDER_JNIRENDERER_JVM_ARGS -javaagent:{{ arender_home }}/prometheus/jmx_prometheus_javaagent-{{jmx_exporter_version}}.jar=8092:/var/opt/arender/prometheus/arender.yml -Dlogging.config=file:/var/opt/arender/renditionService/modules/JNIPdfEngine/logback-spring.xml"
+export ARENDER_CONVERSION_JVM_ARGS="$ARENDER_CONVERSION_JVM_ARGS -javaagent:{{ arender_home }}/prometheus/jmx_prometheus_javaagent-{{jmx_exporter_version}}.jar=8093:/var/opt/arender/prometheus/arender.yml -Dlogging.config=file:/var/opt/arender/renditionService/modules/TaskConversion/logback-spring.xml"

@@ -1,0 +1,57 @@
+---
+# Start exporters in Cassandra and Elassandra machines
+- hosts: dbnodes
+  gather_facts: no
+  roles:
+    - role: cassandra-exporter-start
+    - role: node-exporter-start
+
+# Start node_exporter in monitoring nodes
+- hosts: monitoringnodes
+  gather_facts: no
+  roles:
+    - role: node-exporter-start
+   
+# Start Arender and node_exporter in arender nodes   
+- hosts: arendernodes
+  gather_facts: no
+  roles:
+    - role: node-exporter-start
+    - role: arender-start
+
+# Start clean Spark
+- hosts: dbnodes
+  gather_facts: no
+  roles:
+    - role: spark-stop
+    - role: spark-start
+      when: inventory_hostname == groups['cassandraseeds'][0]
+ 
+# Start Cassandra and Elassandra instances
+- hosts: cassandraseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      
+- hosts: cassandranonseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      
+- hosts: elassandraseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      
+- hosts: elassandranonseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start

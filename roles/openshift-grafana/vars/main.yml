@@ -1,0 +1,7 @@
+grafana_instance_name: grafana
+grafana_instance_port: 3000
+grafana_image: url.dockerhub.com/grafana/grafana:latest
+grafana_home: /home/{{ansible_ssh_user}}
+grafana_replicas: 1
+grafana_volume_size: 2Gi
+prometheus_instance_port: 9090

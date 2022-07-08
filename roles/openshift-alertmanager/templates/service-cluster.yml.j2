@@ -1,0 +1,21 @@
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: {{appname}}-alertmanager-cluster
+    labels:
+      app: {{appname}}-alertmanager
+  spec:
+    type: "ClusterIP"
+    clusterIP: None
+    selector:
+      app: {{appname}}-alertmanager
+    ports:
+      - name: mesh
+        port: {{alertmanager_mesh_port}}
+        protocol: TCP
+        targetPort: {{alertmanager_mesh_port}}
+      - name: http
+        port: {{alertmanager_instance_port}}
+        protocol: TCP
+        targetPort: {{alertmanager_instance_port}}
+

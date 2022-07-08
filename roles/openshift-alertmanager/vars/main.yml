@@ -1,0 +1,14 @@
+alertmanager_instance_name: alertmanager
+alertmanager_instance_port: 9093
+alertmanager_mesh_port: 9094
+alertmanager_image: url.dockerhub.com/prom/alertmanager:latest
+alertmanager_home: /home/{{ansible_ssh_user}}
+
+alertmanager_smtp_from: Operations monitor
+alertmanager_smtp_address: Operations.monitor@server.com
+alertmanager_smtp_host: smtp.server.com:25
+alertmanager_destination: admins@server.com
+
+alertmanager_volume_size: 2Gi
+
+alertmanager_replicas: 2

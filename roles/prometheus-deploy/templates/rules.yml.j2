@@ -1,0 +1,294 @@
+#jinja2: trim_blocks:False
+groups:
+
+# RULES FOR MACHINE METRICS
+- name: alerting_rules_machine
+  rules:
+
+  # Alert for any instance that is unreachable
+  - alert: InstanceDown
+    expr: up == 0
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_instancedown_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.instance }} down"{% endraw %}
+      description: {% raw %}"{{ $labels.instance }} is down."{% endraw %}
+
+  # Alert for any instance that uses over 80% CPU
+  - alert: CpuUsage
+    expr: (1 - avg by(job)(irate(node_cpu_seconds_total{mode='idle'}[5m]))) * 100 > 80
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cpuusage_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high CPU usage"{% endraw %}
+      description: {% raw %}"{{ $labels.job }}'s CPU usage has exceeded the 80% threshold with a load value of {{ $value }}."{% endraw %}
+
+  # Alert for any instance that uses over 90% memory 
+  - alert: MemoryFree
+    expr: (node_memory_MemTotal_bytes - node_memory_MemFree_bytes - node_memory_Cached_bytes) / (node_memory_MemTotal_bytes ) * 100  > 90
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_memoryfree_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high memory usage"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has more than 90% of its memory used."{% endraw %}
+      
+  # Alert for any instance that uses over 80% memory for 
+  - alert: IoUtilVarOpt
+    expr: irate(node_disk_io_time_seconds_total{device="dm-10"}[5m])*100  > 80
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_ioutilvaropt_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high ioutil"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has more than 80% ioutil on dm-10 (/var/opt/): {{ $value }}."{% endraw %}
+      
+    # Alert for any instance that has over 80% ioutil for
+  - alert: IoUtilData
+    expr: irate(node_disk_io_time_seconds_total{device="dm-11"}[5m])*100  > 80
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_ioutildata_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high ioutil"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has more than 80% ioutil on dm-11 (/data): {{ $value }}."{% endraw %}
+
+  # Alert for any instance that uses over 80% open fds 
+  - alert: OpenFileDescriptors
+    expr: process_open_fds / process_max_fds > 0.8
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_openfd_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} is reaching the limit of open files"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has a ratio of {{ $value }} over 1 fds used."{% endraw %}
+
+  # Alert for any instance that uses over 80% disk on D:
+  - alert: DiskSpaceFreeDWindows
+    expr: windows_logical_disk_free_bytes{volume="D:"}/windows_logical_disk_size_bytes{volume="D:"} * 100 < 20
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_diskfreedwindows_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} is low on disk space"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has only {{ $value }}% free."{% endraw %}
+      
+  # Alert for any instance that uses over 80% disk on /data/cassandra/ 
+  - alert: DiskSpaceFreeData
+    expr: node_filesystem_free_bytes{mountpoint="/data/cassandra"} / node_filesystem_size_bytes{mountpoint="/data/cassandra"} * 100 < 20
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_diskfreedata_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} is low on disk space"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has only {{ $value }}% free."{% endraw %}
+      
+  # Alert for any instance that uses over 80% disk on /var/opt/cassandra/ 
+  - alert: DiskSpaceFreeVarOpt
+    expr: node_filesystem_free_bytes{mountpoint="/var/opt/cassandra"} / node_filesystem_size_bytes{mountpoint="/var/opt/cassandra"} * 100 < 20
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_diskfreevaropt_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} is low on disk space"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has only {{ $value }}% free."{% endraw %}
+      
+  # Alert for any instance that uses over 80% disk 
+  - alert: DiskSpaceFreeGenPartition
+    expr: node_filesystem_free_bytes{mountpoint !~ ".*cassandra"} / node_filesystem_size_bytes{mountpoint !~ ".*cassandra"} * 100 < 20
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_diskfreegenpar_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} is low on disk space"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has only {{ $value }}% free."{% endraw %}
+      
+  # Alert for any instance that has over 0.8Gbps in 
+  - alert: InetIn
+    expr: irate(node_network_receive_bytes_total{device="eth0"}[5m]) > 100000000
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_inetin_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high incoming traffic"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has almost 1Gbps in: {{ $value }}."{% endraw %}
+      
+  # Alert for any instance that has over 0.8Gbps out 
+  - alert: InetOut
+    expr: irate(node_network_transmit_bytes_total{device="eth0"}[5m]) > 100000000
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_inetout_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high outgoing traffic"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has almost 1Gbps out: {{ $value }}."{% endraw %}
+
+  # Alert for any windows instance that has not been rebooted in 40 days 
+  - alert: UptimeWindows
+    expr: time()-windows_system_system_up_time > 86400 * 40 
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_windowsuptime_pr_avail"
+    annotations:
+      summary: {% raw %}"The machine {{ $labels.job }} hasn't been rebooted in 40 days"{% endraw %}
+      description: {% raw %}"The machine {{ $labels.job }} hasn't been rebooted in at least 40 days."{% endraw %}
+
+# RULES FOR CASSANDRA METRICS
+- name: alerting_rules_cassandra
+  rules:
+  
+  # Alert for any instance that has over 80% heap utilisation
+  - alert: HeapUsage
+    expr: cassandra_stats{name="java:lang:memory:heapmemoryusage:used"} / ignoring(name) cassandra_stats{name="java:lang:memory:heapmemoryusage:max"} * 100 > 95
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_heapusage_pr_avail"
+    annotations:
+      summary: {% raw %}"Instance {{ $labels.job }} has high Heap utilisation"{% endraw %}
+      description: {% raw %}"{{ $labels.job }} has over 95% Heap memory used: {{ $value }}."{% endraw %}
+
+  # Alert for any Cassandra instance that is unreachable
+  - alert: CassandraNodesDown
+    expr: max(cassandra_stats{name="org:apache:cassandra:net:failuredetector:downendpointcount"}) by (cluster) > 0
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandranodesdown_pr_avail"
+    annotations:
+      summary: {% raw %}"There are Cassandra instances down"{% endraw %}
+      description: {% raw %}"Some Cassandra instance in cluster {{ $labels.cluster }} has been down: {{ $value }} instance/s."{% endraw %}
+      
+  # Alert for Cassandra timeouts
+  - alert: Timeouts
+    expr: sum by (job,cluster)(irate(cassandra_stats{name=~"org:apache:cassandra:metrics:clientrequest:.*:timeouts:oneminuterate"}[5m])) > 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandratimeouts_pr_avail"
+    annotations:
+      summary: {% raw %}"Cassandra instance is having timeouts"{% endraw %}
+      description: {% raw %}"Timeout counter in {{ $labels.job }} active: {{ $value }}."{% endraw %}
+      
+  # Alert for Cassandra unavailable
+  - alert: Unavailables
+    expr: sum by (job,cluster)(irate(cassandra_stats{name=~"org:apache:cassandra:metrics:clientrequest:.*:unavailables:oneminuterate"}[5m])) > 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandraunavailables_pr_avail"
+    annotations:
+      summary: {% raw %}"Cassandra instance is having unavailable"{% endraw %}
+      description: {% raw %}"Unavailable counter in {{ $labels.job }} active: {{ $value }}."{% endraw %}
+
+  # Alert for Cassandra exceptions
+  - alert: Exceptions
+    expr: irate(cassandra_stats{name=~"org:apache:cassandra:metrics:storage:exceptions:count"}[5m]) > 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandraexceptions_pr_avail"
+    annotations:
+      summary: {% raw %}"Cassandra instance is having exceptions"{% endraw %}
+      description: {% raw %}"Exceptions counter in {{ $labels.job }} active: {{ $value }}."{% endraw %}
+      
+  # Alert for Cassandra connection timeouts
+  - alert: ConnectionTimeouts
+    expr: sum(cassandra_stats{name=~"org:apache:cassandra:metrics:connection:totaltimeouts:oneminuterate"}) by (cluster) > 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandraconnections_pr_avail"
+    annotations:
+      summary: {% raw %}"Cassandra instance is having connection timeouts"{% endraw %}
+      description: {% raw %}"Connection timeouts counter in {{ $labels.job }} active: {{ $value }}."{% endraw %}
+      
+  # Alert for Cassandra dropped messages
+  - alert: DroppedMessages
+    expr: sum by (job,cluster) (cassandra_stats{name="org:apache:cassandra:metrics:droppedmessage:request_response:dropped:oneminuterate"}) > 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandradropped_pr_avail"
+    annotations:
+      summary: {% raw %}"Cassandra instance is having dropped messages"{% endraw %}
+      description: {% raw %}"Dropped messages counter in {{ $labels.job }} active: {{ $value }}."{% endraw %}
+      
+  # Alert for Cassandra pending compactions
+  - alert: PendingCompactions
+    expr: cassandra_stats{name=~"org:apache:cassandra:metrics:compaction:pendingtasks:value"} > 20
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_cassandrapendingcompactions_pr_avail"
+    annotations:
+      summary: {% raw %}"Cassandra instance is cummulating pending compactions"{% endraw %}
+      description: {% raw %}"Pending compactions are spiking in instance {{ $labels.job }}: {{ $value }}."{% endraw %}
+      
+# RULES FOR ENDPOINTS AND CERTIFICATE CHECKS
+- name: alerting_rules_blackbox
+  rules: 
+  - alert: CertificateExpirationHttps
+    expr: probe_ssl_earliest_cert_expiry{job="blackbox_https"} - time() < 86400 * 30 
+    for: 10m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_certexpirationhttps_pr_avail"
+    annotations:
+      summary: {% raw %}"The certificate of the host is about to expire"{% endraw %}
+      description: {% raw %}"The certificate of the host for the HTTPS service will expire in less than 30 days."{% endraw %}
+      
+  - alert: CertificateExpirationTcp
+    expr: probe_ssl_earliest_cert_expiry{job="blackbox_tcp"} - time() < 86400 * 30 
+    for: 10m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_certexpirationtcp_pr_avail"
+    annotations:
+      summary: {% raw %}"The certificate of the host is about to expire"{% endraw %}
+      description: {% raw %}"The certificate of the host for the Cassandra TLS service will expire in less than 30 days."{% endraw %}
+      
+  - alert: MissingEndpointHttps
+    expr: probe_success{job="blackbox_https"} < 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_missinghttps_pr_avail"
+    annotations:
+      summary: {% raw %}"The endpoint is not responding (not sending metrics back)"{% endraw %}
+      description: {% raw %}"The HTTPS service is offline."{% endraw %}
+      
+  - alert: MissingEndpointTcp
+    expr: probe_success{job="blackbox_tcp"} < 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_missingtcp_pr_avail"
+    annotations:
+      summary: {% raw %}"The endpoint is not responding (not sending metrics back)"{% endraw %}
+      description: {% raw %}"The TCP service is offline."{% endraw %}
+
+  - alert: MissingEndpointTcpNoSSL
+    expr: probe_success{job="blackbox_tcp_nossl"} < 1
+    for: 5m
+    labels:
+      severity: critical
+      probe: "{{env_domain}}_10551_01_missingtcpnossl_pr_avail"
+    annotations:
+      summary: {% raw %}"The endpoint is not responding (not sending metrics back)"{% endraw %}
+      description: {% raw %}"The TCP service is offline."{% endraw %}

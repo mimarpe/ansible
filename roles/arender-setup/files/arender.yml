@@ -1,0 +1,5 @@
+---
+lowercaseOutputLabelNames: true
+lowercaseOutputName: true
+blacklistObjectNames: ["com.arondor.common.management.mbean.MBeanObjectHelper:type=*","com.arondor.common.ehmap.EHMap:type=*","com.arondor.viewer.rendition.performance.AWeatherRImpl:type=ARender_Weather","com.arondor.viewer.rendition.local.LocalDocumentService:*","com.arondor.fast2p8.*:*"]
+ 

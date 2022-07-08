@@ -1,0 +1,13 @@
+reaper_instance_name: reaper
+reaper_instance_port: 8080
+reaper_instance_port_admin: 8081
+reaper_image: url.dockerhub.com/thelastpickle/cassandra-reaper:latest
+reaper_home: /home/{{ansible_ssh_user}}
+reaper_replicas: 1
+reaper_create_ks: 0
+
+reaper_cluster_name: "Cassandra {{ env_domain }} Cluster"
+reaper_contact_points: "[{{ groups['cassandranodes'][0] }}, {{ groups['cassandranodes'][1] }}, {{ groups['cassandranodes'][2] }}]"
+#reaper_contact_points: '["{{ groups[cassandranodes][0] }}", "{{ groups[cassandranodes][1] }}", "{{ groups[cassandranodes][2] }}"]'
+
+reaper_ssl_jmx_enabled: false

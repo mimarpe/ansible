@@ -1,0 +1,19 @@
+prometheus_instance_name: prometheus
+prometheus_instance_port: 9090
+prometheus_image: url.dockerhub.com/prom/prometheus:latest
+
+prometheus_home: /home/{{ansible_ssh_user}}
+#prometheus_rentention_time: 12m
+prometheus_retention_size: 90GB
+
+prometheus_scrape: 10s
+prometheus_evaluation: 10s
+
+blackbox_port_exposed: 9115
+
+prometheus_dc: dc-{{appname}}-prometheus
+
+prometheus_replicas: 2
+alertmanager_replicas: 2
+
+prometheus_volume_size: 100Gi

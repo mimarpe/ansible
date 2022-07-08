@@ -1,0 +1,65 @@
+- apiVersion: apps/v1beta2
+  kind: StatefulSet
+  metadata:
+    name: {{appname}}-blackbox
+    labels: &Labels
+      app: {{appname}}-blackbox
+  spec:
+    serviceName: {{appname}}-blackbox
+    replicas: {{blackbox_replicas}}
+    selector:
+      matchLabels: *Labels
+    template:
+      metadata:
+        labels: *Labels
+      spec:
+        serviceAccountName: blackbox
+        containers:
+          - name: blackbox
+            image: {{blackbox_image}}
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: config
+                mountPath: "/etc/config"
+              #- name: cacert
+              #  mountPath: "/etc/blackbox/CA/cert.pem" # TODO when cassandra over TLS
+              #  subPath: cert.pem
+              #- name: cakey
+              #  mountPath: "/etc/blackbox/CA/key.pem" # TODO when cassandra over TLS
+              #  subPath: key.pem
+            args:
+              - --config.file=/etc/config/blackbox.yml
+            ports:
+              - name: blackbox
+                containerPort: {{blackbox_instance_port}}
+                protocol: TCP
+            livenessProbe:
+              httpGet:
+                path: /api/health
+                port: {{blackbox_instance_port}}
+            readinessProbe:
+              httpGet:
+                path: /api/health
+                port: {{blackbox_instance_port}}
+              initialDelaySeconds: 60
+              timeoutSeconds: 30
+              failureThreshold: 10
+              periodSeconds: 10
+            resources:
+              limits:
+                cpu: 50m
+                memory: 50Mi
+              requests:
+                cpu: 50m
+                memory: 50Mi
+        volumes:
+          - name: config
+            configMap:
+              name: {{appname}}-blackbox-config
+          #- name: cacert
+          #  configMap:
+          #    name: {{appname}}-blackbox-cert
+          #- name: cakey
+          #  configMap:
+          #    name: {{appname}}-blackbox-key
+

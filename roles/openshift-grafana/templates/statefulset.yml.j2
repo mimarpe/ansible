@@ -1,0 +1,100 @@
+- apiVersion: apps/v1beta2
+  kind: StatefulSet
+  metadata:
+    name: {{appname}}-grafana
+    labels: &Labels
+      app: {{appname}}-grafana
+  spec:
+    serviceName: {{appname}}-grafana
+    replicas: {{grafana_replicas}}
+    selector:
+      matchLabels: *Labels
+    template:
+      metadata:
+        labels: *Labels
+      spec:
+        serviceAccountName: grafana
+        containers:
+          - name: grafana
+            image: {{grafana_image}}
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: config
+                mountPath: "/etc/grafana/"
+              - name: cassandra-dashboard
+                mountPath: "/var/lib/grafana/dashboards/cassandra-dashboard.json"
+                subPath: cassandra-dashboard.json
+              - name: nodes-dashboard
+                mountPath: "/var/lib/grafana/dashboards/nodes-dashboard.json"
+                subPath: nodes-dashboard.json
+              - name: prometheus-dashboard
+                mountPath: "/var/lib/grafana/dashboards/prometheus-dashboard.json"
+                subPath: prometheus-dashboard.json
+              - name: tomcat-dashboard
+                mountPath: "/var/lib/grafana/dashboards/tomcat-dashboard.json"
+                subPath: tomcat-dashboard.json
+              - name: datasources
+                mountPath: "/etc/grafana/provisioning/datasources/"
+              - name: dashboardproviders
+                mountPath: "/etc/grafana/provisioning/dashboards/"
+              - name: grafana-data
+                mountPath: "/var/lib/grafana"
+            ports:
+              - name: grafana
+                containerPort: {{grafana_instance_port}}
+                protocol: TCP
+            envFrom:
+            - configMapRef:
+                name: {{appname}}-grafana-env
+            livenessProbe:
+              httpGet:
+                path: /api/health
+                port: {{grafana_instance_port}}
+            readinessProbe:
+              httpGet:
+                path: /api/health
+                port: {{grafana_instance_port}}
+              initialDelaySeconds: 60
+              timeoutSeconds: 30
+              failureThreshold: 10
+              periodSeconds: 10
+            resources:
+              limits:
+                cpu: 750m
+                memory: 1000Mi
+              requests:
+                cpu: 500m
+                memory: 500Mi
+        volumes:
+          - name: config
+            configMap:
+              name: {{appname}}-grafana-ini
+          - name: datasources
+            configMap:
+              name: {{appname}}-grafana-datasources
+          - name: dashboardproviders
+            configMap:
+              name: {{appname}}-grafana-dashboard-providers
+          - name: cassandra-dashboard
+            configMap:
+              name: {{appname}}-grafana-cassandra-dashboard
+          - name: nodes-dashboard
+            configMap:
+              name: {{appname}}-grafana-nodes-dashboard
+          - name: tomcat-dashboard
+            configMap:
+              name: {{appname}}-grafana-tomcat-dashboard              
+          - name: prometheus-dashboard
+            configMap:
+              name: {{appname}}-grafana-prometheus-dashboard
+    volumeClaimTemplates:
+    - metadata:
+        name: grafana-data
+      spec:
+        #storageClassName: do-block-storage
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{grafana_instance_port}}"
+

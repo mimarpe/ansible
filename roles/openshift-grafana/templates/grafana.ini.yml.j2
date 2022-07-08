@@ -1,0 +1,14 @@
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: {{appname}}-grafana-ini
+    labels:
+      app: {{appname}}-grafana
+  data:
+    grafana.ini: |
+      [log]
+      mode = console
+      [paths]
+      data = /var/lib/grafana/data
+      logs = /var/log/grafana
+      plugins = /var/lib/grafana/plugins

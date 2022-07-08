@@ -1,0 +1,16 @@
+---
+- hosts: ocnode
+  gather_facts: no
+  
+  roles:
+    - role: openshift-prometheus
+      tags: [ never, prometheus ]
+    - role: openshift-grafana
+      tags: [ never, grafana ]
+    - role: openshift-alertmanager
+      tags: [ never, alertmanager ]
+    - role: openshift-reaper
+      tags: [ never, reaper ]
+    - role: openshift-blackbox
+      tags: [ never, blackbox ]
+      

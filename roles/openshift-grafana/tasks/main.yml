@@ -1,0 +1,52 @@
+--- 
+# Create folder for the templates
+- name: Create folder for the templates
+  file:
+    path: "{{ grafana_home }}/openshift/grafana/"
+    state: directory
+    mode: 0755
+
+# Templates
+- name: Templates
+  template:
+    src: "{{item.src}}"
+    dest: "{{ grafana_home }}/openshift/grafana/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/prometheus-dashboard.yml.j2, dst: prometheus-dashboard.yml }
+    - { src: templates/cassandra-dashboard.yml.j2, dst: cassandra-dashboard.yml }
+    - { src: templates/tomcat-dashboard.yml.j2, dst: tomcat-dashboard.yml }
+    - { src: templates/nodes-dashboard.yml.j2, dst: nodes-dashboard.yml }
+    - { src: templates/dashboard-providers.yml.j2, dst: dashboard-providers.yml }
+    - { src: templates/datasources.yml.j2, dst: datasources.yml }
+    - { src: templates/grafana.ini.yml.j2, dst: grafana.ini.yml }
+    - { src: templates/grafana-env.yml.j2, dst: grafana-env.yml }
+    - { src: templates/template.yml.j2, dst: template.yml }
+    - { src: templates/statefulset.yml.j2, dst: statefulset.yml }
+    - { src: templates/service.yml.j2, dst: service.yml }
+    - { src: templates/serviceaccount.yml.j2, dst: serviceaccount.yml }
+    - { src: templates/route.yml.j2, dst: route.yml }
+
+# Create yml from small partial ymls
+- name: Create yml from small partial ymls 
+  shell: >
+    cat template.yml cassandra-dashboard.yml nodes-dashboard.yml prometheus-dashboard.yml tomcat-dashboard.yml dashboard-providers.yml 
+    datasources.yml grafana.ini.yml grafana-env.yml serviceaccount.yml statefulset.yml service.yml route.yml > grafana_deploy.yml
+  args:
+    executable: /bin/bash
+    chdir: "{{ grafana_home }}/openshift/grafana/"
+    
+# Create components in OpenShift
+- name: Create yml from small partial ymls 
+  shell: "{{grafana_home}}/bin/oc process -f grafana_deploy.yml -o yaml | {{grafana_home}}/bin/oc create -f-"
+  args:
+    executable: /bin/bash
+    chdir: "{{ grafana_home }}/openshift/grafana/"
+  register: out_oc
+  
+# Show create outs
+- name: Show create results
+  debug: 
+    var: out_oc

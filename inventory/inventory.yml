@@ -1,0 +1,206 @@
+all:
+  children:
+    dbnodes:
+      children:
+        cassandranodes:
+          children:
+            cassandraseeds:
+              hosts:
+                cassandra_prod_dc1_01:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc2_01:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc3_01:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+            cassandranonseeds:
+              hosts:
+                cassandra_prod_dc1_02:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_03:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_04:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_05:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_06:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_07:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_08:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_09:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_10:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_11:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_12:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_13:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc1_14:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                cassandra_prod_dc2_02:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_03:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_04:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_05:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_06:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_07:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_08:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_09:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_10:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_11:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_12:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_13:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc2_14:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                cassandra_prod_dc3_02:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_03:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_04:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_05:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_06:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_07:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_08:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_09:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_10:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_11:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_12:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_13:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+                cassandra_prod_dc3_14:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+        elassandranodes:
+          children:
+            elassandraseeds:
+              hosts: 
+                elassandra_prod_dc1_01:
+                  cassandra_dc: dc1
+                  cassandra_rack: r1
+                elassandra_prod_dc2_01:
+                  cassandra_dc: dc1
+                  cassandra_rack: r2
+                elassandra_prod_dc3_01:
+                  cassandra_dc: dc1
+                  cassandra_rack: r3
+    appnodes:
+      children:
+        arendernodes:
+          hosts:
+            arenderhost1:
+              endpoints:
+              - 8761/weather
+              jmxports:
+              - '8090'
+            arenderhost2:
+              endpoints:
+              - 8761/weather
+              jmxports:
+              - '8090'
+        tomcatnodes:
+          hosts:
+            tomcatnodea1:
+              endpoints:
+              - 20000/webapp1
+              jmxports:
+              - '20090'
+              cassandra_home: /opt/tomcat/extras/prometheus/
+            tomcatnodea2:
+              endpoints:
+              - 20000/webapp1
+              jmxports:
+              - '20090'
+              cassandra_home: /opt/tomcat/extras/prometheus/
+            tomcatnodeb1:
+              endpoints:
+              - 20100/webapp2/assets/material/custom.scss
+              - 20200/webapp2admin/static/img/icon.png
+              jmxports:
+              - '20190'
+              - '20290'
+              cassandra_home: /opt/tomcat/extras/prometheus/
+            tomcatnodeb2:
+              endpoints:
+              - 20100/webapp2/assets/material/custom.scss
+              - 20200/webapp2admin/static/img/icon.png
+              jmxports:
+              - '20190'
+              - '20290'
+              cassandra_home: /opt/tomcat/extras/prometheus/
+    monitoringnodes:
+      hosts:
+        monitor1:
+          jobs:
+          - 'jobs_prod:7201'
+        monitor2: {}
+    windowsnodes:
+      hosts:
+        windowshost1: {}
+    ocnode:
+      hosts:
+        localhost: {}
+    ungrouped: {}

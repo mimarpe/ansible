@@ -1,0 +1,89 @@
+- apiVersion: apps/v1beta2
+  kind: StatefulSet
+  metadata:
+    name: {{appname}}-prometheus
+    labels: &Labels
+      app: {{appname}}-prometheus
+  spec:
+    serviceName: "{{appname}}-prometheus"
+    replicas: {{ prometheus_replicas }}
+    podManagementPolicy: "Parallel"
+    updateStrategy:
+      type: "RollingUpdate"
+    selector:
+      matchLabels: *Labels
+    template:
+      metadata:
+        labels: *Labels
+      spec:
+        serviceAccountName: prometheus
+        containers:
+          - name: prometheus-server
+            image: {{ prometheus_image }}
+            imagePullPolicy: "IfNotPresent"
+            args:
+              - --config.file=/etc/config/prometheus.yml
+              - --storage.tsdb.path=/data
+              - --web.console.libraries=/etc/prometheus/console_libraries
+              - --web.console.templates=/etc/prometheus/consoles
+              - --web.enable-lifecycle
+              - --web.enable-admin-api
+              - --storage.tsdb.retention.size={{prometheus_retention_size}}
+            ports:
+              - containerPort: {{prometheus_instance_port}}
+            readinessProbe:
+              httpGet:
+                path: /-/ready
+                port: {{prometheus_instance_port}}
+              initialDelaySeconds: 30
+              timeoutSeconds: 30
+            livenessProbe:
+              httpGet:
+                path: /-/healthy
+                port: {{prometheus_instance_port}}
+              initialDelaySeconds: 30
+              timeoutSeconds: 30
+            resources:
+              requests:
+                cpu: 300m
+                memory: 300Mi
+            volumeMounts:
+              - name: config-volume
+                mountPath: /etc/config/prometheus.yml
+                subPath: prometheus.yml
+              - name: alerts-volume
+                mountPath: /etc/config/alert-rules.yml
+                subPath: alert-rules.yml
+              - name: prometheus-data
+                mountPath: /data
+                subPath: ""
+        terminationGracePeriodSeconds: 300
+        volumes:
+          - name: config-volume
+            configMap:
+              name: {{appname}}-prometheus-config
+          - name: alerts-volume
+            configMap:
+              name: {{appname}}-prometheus-alert-config
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - {{appname}}-prometheus
+              topologyKey: "kubernetes.io/hostname"
+    volumeClaimTemplates:
+    - metadata:
+        name: prometheus-data
+        labels: *Labels
+      spec:
+        #storageClassName: do-block-storage
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{ prometheus_volume_size }}"
+

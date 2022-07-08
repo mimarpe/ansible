@@ -1,0 +1,66 @@
+# NOTES
+# Make sure you have ssh-forwarding enabled for Ansible:
+# dans /etc/ansible/ansible.cfg 
+#   -> [ssh_connection]
+#      ssh_args=-o ControlMaster=auto -o ControlPersist=60s -o ControlPath=/tmp/ansible-ssh-%h-%p-%r -o ForwardAgent=yes
+# from: https://stackoverflow.com/questions/24124140/ssh-agent-forwarding-with-ansible
+#
+# Nice ansible debug
+# export ANSIBLE_DEBUG=True, export ANSIBLE_LOG_PATH=~/ansible.log, and run playbook with -vvvv
+
+---
+# Create reaper_db keyspace
+- name: Create reaper_db keyspace
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ansible_ssh_user}}@{{groups['cassandranodes'][0]}}
+    {{cassandra_home}}/current_cassandra/bin/cqlsh {{groups['cassandranodes'][0]}} {{cassandra_ssl}}  
+    -e "\"create keyspace if not exists reaper_db 
+    with replication={'class' : 'NetworkTopologyStrategy', {{hostvars[groups['cassandranodes'][0]].replication_strategy}} } 
+    and durable_writes=true;\""
+  when: reaper_create_ks == 1
+
+# Create folder for the templates
+- name: Create folder for the templates
+  file:
+    path: "{{ reaper_home }}/openshift/reaper/"
+    state: directory
+    mode: 0755
+
+# Templates
+- name: Templates
+  template:
+    src: "{{item.src}}"
+    dest: "{{ reaper_home }}/openshift/reaper/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/reaper-env.yml.j2, dst: reaper-env.yml }
+    - { src: templates/shiro.ini.yml.j2, dst: shiro.ini.yml }
+    - { src: templates/cassandra-secret.yml.j2, dst: cassandra-secret.yml }
+    - { src: templates/template.yml.j2, dst: template.yml }
+    - { src: templates/statefulset.yml.j2, dst: statefulset.yml }
+    - { src: templates/service.yml.j2, dst: service.yml }
+    - { src: templates/serviceaccount.yml.j2, dst: serviceaccount.yml }
+    - { src: templates/route.yml.j2, dst: route.yml }
+
+# Create yml from small partial ymls
+- name: Create yml from small partial ymls 
+  shell: >
+    cat template.yml reaper-env.yml shiro.ini.yml cassandra-secret.yml serviceaccount.yml statefulset.yml service.yml route.yml > reaper_deploy.yml
+  args:
+    executable: /bin/bash
+    chdir: "{{ reaper_home }}/openshift/reaper/"
+    
+# Create components in OpenShift
+- name: Create yml from small partial ymls 
+  shell: "{{reaper_home}}/bin/oc process -f reaper_deploy.yml -o yaml | {{reaper_home}}/bin/oc create -f-"
+  args:
+    executable: /bin/bash
+    chdir: "{{ reaper_home }}/openshift/reaper/"
+  register: out_oc
+  
+# Show create outs
+- name: Show create results
+  debug: 
+    var: out_oc

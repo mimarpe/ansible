@@ -1,0 +1,6 @@
+archive_desc: "archive-{{ ansible_date_time.date }}"
+command_restore: dsmc rest -su=yes -ifnewer -rep=all
+command_retrieve: dsmc retrieve -su=yes -rep=all -desc={{ archive_desc }}
+multiple_nodes: "{{ansible_play_hosts | length }} > 1 | bool"
+timeout: 10h
+archive_only: false

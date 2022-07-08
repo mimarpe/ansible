@@ -1,0 +1,132 @@
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: {{appname}}-prometheus-config
+    labels:
+      app: {{appname}}-prometheus
+  data:
+    prometheus.yml: |
+      global:
+        scrape_interval:     {{ prometheus_scrape }}
+        evaluation_interval: {{ prometheus_evaluation }}
+        external_labels:
+          dc: {{ env_domain }}
+      
+      rule_files:
+        - /etc/config/alert-rules.yml
+      
+      alerting:
+        alert_relabel_configs:
+        - source_labels: [dc]
+          regex: (.+)\d*
+          target_label: dc
+
+        alertmanagers:
+        - path_prefix: /
+          scheme: http
+          tls_config:
+            insecure_skip_verify: true
+
+          kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+              - {{projectname}}
+          relabel_configs:
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_service_name
+            regex: {{appname}}-alertmanager
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_endpoint_port_name
+            regex: http
+      
+      scrape_configs:
+{% for item in groups['dbnodes'] %}
+        - job_name: '{{ item }}'
+          static_configs:
+            - targets: ['{{ item }}:8090', '{{ item }}:9100']
+              labels:
+                alias: {{ item }}
+{% endfor %}
+      
+{% for item in groups['appnodes'] %}
+        - job_name: '{{ item }}'
+          static_configs:
+            - targets: ['{{ item }}:9100']
+              labels:
+                alias: {{ item }}
+{% endfor %}
+
+        - job_name: 'prometheus'
+          scheme: http
+          kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+              - {{projectname}}
+          relabel_configs:
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_service_name
+            regex: {{appname}}-prometheus
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_endpoint_port_name
+            regex: http
+          - source_labels: [__meta_kubernetes_pod_name]
+            regex: (.+)
+            target_label: job_name
+
+        - job_name: 'jmx_exporter'
+          scheme: http
+          static_configs:
+            - targets:
+{% for server in groups['appnodes'] %}
+{% for jmxp in hostvars[server].jmxports %}
+              - '{{server}}:{{jmxp}}'
+{% endfor %}
+{% endfor %}
+      
+        - job_name: 'blackbox_https'
+          scrape_interval: "60s"
+          scheme: https
+          tls_config:
+            insecure_skip_verify: true
+          metrics_path: /probe
+          params:
+            module: [http_2xx]  # Look for a HTTP 200 response.
+          static_configs:
+            - targets:
+{% for tomcat in groups['tomcatnodes'] %}
+{% for endpointt in hostvars[tomcat].endpoints %}
+              - https://{{tomcat}}:{{endpointt}}
+{% endfor %}
+{% endfor %}
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              replacement: blackbox-{{appname}}.{{oc_endpoint[env_domain]}}
+              
+        - job_name: 'blackbox_tcp'
+          scrape_interval: "60s"
+          metrics_path: /probe
+          params:
+            module: [tcp]
+          static_configs:
+            - targets:
+{% for item in groups['dbnodes'] %}
+              - {{item}}:7001  # Target to probe
+{% endfor %}
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              replacement: blackbox-{{appname}}.{{oc_endpoint[env_domain]}}
+

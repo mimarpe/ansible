@@ -1,0 +1,75 @@
+- apiVersion: apps/v1beta2
+  kind: StatefulSet
+  metadata:
+    name: {{appname}}-reaper
+    labels: &Labels
+      app: {{appname}}-reaper
+  spec:
+    serviceName: {{appname}}-reaper
+    replicas: {{reaper_replicas}}
+    selector:
+      matchLabels: *Labels
+    template:
+      metadata:
+        labels: *Labels
+      spec:
+        serviceAccountName: reaper
+        containers:
+          - name: reaper
+            image: {{reaper_image}}
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: shiro
+                mountPath: /etc/shiro.ini
+                subPath: shiro.ini
+            ports:
+              - name: reaper
+                containerPort: {{reaper_instance_port}}
+                protocol: TCP
+              - name: reaper-admin
+                containerPort: {{reaper_instance_port_admin}}
+                protocol: TCP
+            env:
+              - name: REAPER_CASS_AUTH_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: {{appname}}-reaper-secrets
+                    key: cassandra-user
+              - name: REAPER_JMX_AUTH_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: {{appname}}-reaper-secrets
+                    key: cassandra-user             
+              - name: REAPER_CASS_AUTH_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{appname}}-reaper-secrets
+                    key: cassandra-password
+              - name: REAPER_JMX_AUTH_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{appname}}-reaper-secrets
+                    key: cassandra-password
+            envFrom:
+            - configMapRef:
+                name: {{appname}}-reaper-env
+            readinessProbe:
+              httpGet:
+                path: /webui
+                port: {{reaper_instance_port}}
+              initialDelaySeconds: 60
+              timeoutSeconds: 30
+              failureThreshold: 10
+              periodSeconds: 10
+            resources:
+              limits:
+                cpu: 200m
+                memory: 250Mi
+              requests:
+                cpu: 100m
+                memory: 100Mi
+        volumes:
+          - name: shiro
+            configMap:
+              name: {{appname}}-reaper-shiro-ini
+

@@ -1,0 +1,15 @@
+arender_version: "4.5.1"
+arender_md5: 5fcbda095dc6a7d30f39f197016944f9
+arender_package: "rendition-engine-package-{{arender_version}}.zip"
+arender_url_download: "https://your.libserver.com/repository/com/arondor/arender/micro/services/rendition-engine-package/{{arender_version}}/{{arender_package}}"
+arender_home: "/var/opt/arender"
+arender_dir: "renditionService"
+
+node_exporter_version: 1.1.0
+node_exporter_md5: 518d119819db7c8d1ae8a311068c94cb
+node_exporter_url_download: "https://your.fileserver.com/pub/cassandra/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+
+jmx_exporter_version: 0.16.1
+jmx_exporter_url_download: "https://your.fileserver.com/pub/cassandra/jmx_prometheus_javaagent-{{ jmx_exporter_version }}.jar"
+jmx_exporter_md5: 2882dbb749e2bdfba6cc44f9f992ccd8
+jmx_exporter_port: 8090

@@ -1,0 +1,44 @@
+--- 
+# Create folder for the templates
+- name: Create folder for the templates
+  file:
+    path: "{{ alertmanager_home }}/openshift/alertmanager/"
+    state: directory
+    mode: 0755
+
+# Templates
+- name: Templates
+  template:
+    src: "{{item.src}}"
+    dest: "{{ alertmanager_home }}/openshift/alertmanager/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/template.yml.j2, dst: template.yml }
+    - { src: templates/alertmanager.yml.j2, dst: alertmanager.yml }
+    - { src: templates/statefulset.yml.j2, dst: statefulset.yml }
+    - { src: templates/service.yml.j2, dst: service.yml }
+    - { src: templates/service-cluster.yml.j2, dst: service-cluster.yml }
+    - { src: templates/serviceaccount.yml.j2, dst: serviceaccount.yml }
+    - { src: templates/route.yml.j2, dst: route.yml }
+
+# Create yml from small partial ymls
+- name: Create yml from small partial ymls 
+  shell: cat template.yml alertmanager.yml serviceaccount.yml statefulset.yml service.yml service-cluster.yml route.yml > alertmanager_deploy.yml
+  args:
+    executable: /bin/bash
+    chdir: "{{ alertmanager_home }}/openshift/alertmanager/"
+    
+# Create components in OpenShift
+- name: Create yml from small partial ymls 
+  shell: "{{alertmanager_home}}/bin/oc process -f alertmanager_deploy.yml -o yaml | {{alertmanager_home}}/bin/oc create -f-"
+  args:
+    executable: /bin/bash
+    chdir: "{{ alertmanager_home }}/openshift/alertmanager/"
+  register: out_oc
+  
+# Show create outs
+- name: Show create results
+  debug: 
+    var: out_oc

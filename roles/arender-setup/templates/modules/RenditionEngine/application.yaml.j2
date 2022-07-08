@@ -1,0 +1,120 @@
+management:
+  health:
+    defaults:
+      enabled: false
+
+run-mode :
+  restartEnabled : true
+  standalone : true
+  kubMode : true
+  username : admin
+  password : Ewc4EszUL5XSPb7Z
+
+security:
+  user:
+    name: ${run-mode.username}
+    password: ${run-mode.password}
+
+aop :
+  active : false
+  activateLogger : true
+  activateEs : false
+  esHost: localhost
+  esPort: 9200
+  esIndexName: arender-rendition-performance
+  esProtocol: http
+  esUserName : ""
+  esPassword : ""
+  rejectedDocs: false
+  nbDaysKept: 1
+  rejectedPath: "rejected/"
+
+spring:
+  cloud:
+    discovery:
+      enabled : true
+  application:
+    name: RenditionEngine
+  profiles:
+    active: security
+  main:
+    banner-mode: "log"
+
+services-broker:
+  signaturePDF : false
+
+micro-service-holder:
+  timeout-ms-waiting-service: 600000
+
+micro-services:
+  services:
+    - JNIPdfEngine
+    - PDFBoxEngine
+    - TaskConversion
+  mandatoryServices:
+    - name: PDFBoxEngine
+      executable : java ${arender.pdfbox.jvm.args} -Xmx${arender.pdfbox.memory} -jar
+      extension : .jar
+      healthCheckUrl : /actuator/health
+      healthRecordUrl : /health/record
+      basePath: ../../
+    - name: JNIPdfEngine
+      executable : java ${arender.jnirenderer.jvm.args} -Xmx${arender.jnirenderer.memory} -jar
+      extension : .jar
+      healthCheckUrl : /actuator/health
+      healthRecordUrl : /health/record
+      basePath: ../../
+    - name: TaskConversion
+      executable : java ${arender.conversion.jvm.args} -Xmx${arender.conversion.memory} -jar
+      extension : .jar
+      healthCheckUrl : /actuator/health
+      healthRecordUrl : /health/record
+      basePath: ../../
+
+server:
+  tomcat:
+    max-connections: 2048
+    max-threads: 1024
+    accesslog:
+      enabled: true
+  port: 8761
+
+rest-template:
+  connect-timeout : 120000
+  read-timeout: 600000
+  max-connection-total: 100
+  max-connection-per-route: 20
+
+temp:
+  files:
+    folder: ../../tmp/
+    cache:
+      expiration:
+        time: 1
+        unit: HOURS
+      cleanup:
+        time: 5
+        unit: MINUTES
+    house-keeping:
+      expiration:
+        time: 1
+        unit: DAYS
+
+logging:
+  level:
+    ROOT: INFO
+    org.springframework: INFO
+    org.springframework.data: ERROR
+  file: application.log
+
+kubeprovider:
+  useLocalhost : true
+  kubeHosts: &hosts
+    conversion-service: 19999
+    jni-service: 9091
+    pdfbox-service: 8899
+    dfs-service: 8081
+
+provider:
+  environment: local
+  hosts: *hosts

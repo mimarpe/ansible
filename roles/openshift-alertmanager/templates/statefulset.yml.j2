@@ -1,0 +1,88 @@
+- apiVersion: apps/v1beta2
+  kind: StatefulSet
+  metadata:
+    name: {{appname}}-alertmanager
+    labels: &Labels
+      app: {{appname}}-alertmanager
+  spec:
+    serviceName: "{{appname}}-alertmanager-cluster"
+    replicas: {{alertmanager_replicas}}
+    podManagementPolicy: OrderedReady
+    updateStrategy:
+      type: RollingUpdate
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels: *Labels
+    template:
+      metadata:
+        labels: *Labels
+      spec:
+        serviceAccountName: alertmanager
+        containers:
+          - name: alertmanager
+            image: {{alertmanager_image}}
+            imagePullPolicy: Always
+            args:
+              - --config.file=/etc/config/alertmanager.yml
+              - --storage.path=/data
+              - --web.listen-address=:{{alertmanager_instance_port}}
+              - --web.route-prefix=/
+{% for n in range(0, alertmanager_replicas) %}
+              - --cluster.peer={{appname}}-alertmanager-{{n}}.{{appname}}-alertmanager-cluster:{{alertmanager_mesh_port}}
+{% endfor %}
+              - --log.level=debug
+            env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            ports:
+              - containerPort: {{alertmanager_instance_port}}
+                name: http
+              - containerPort: {{alertmanager_mesh_port}}
+                name: mesh
+            readinessProbe:
+              httpGet:
+                path: /#/status
+                port: {{alertmanager_instance_port}}
+              initialDelaySeconds: 30
+              timeoutSeconds: 30
+            volumeMounts:
+              - name: config-volume
+                mountPath: /etc/config
+              - name: alertmanager-data
+                mountPath: "/data"
+                subPath: ""
+            resources:
+              limits:
+                cpu: 10m
+                memory: 50Mi
+              requests:
+                cpu: 10m
+                memory: 50Mi
+        volumes:
+          - name: config-volume
+            configMap:
+              name: {{appname}}-alertmanager-config
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - {{appname}}-alertmanager
+              topologyKey: "kubernetes.io/hostname"
+    volumeClaimTemplates:
+    - metadata:
+        name: alertmanager-data
+      spec:
+        #storageClassName: kubernetes.io/glusterfs
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{alertmanager_volume_size}}"
+

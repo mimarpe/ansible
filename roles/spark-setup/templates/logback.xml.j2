@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- For assistance related to logback-translator or configuration  -->
+<!-- files in general, please contact the logback user mailing list -->
+<!-- at http://www.qos.ch/mailman/listinfo/logback-user             -->
+<!--                                                                -->
+<!-- For professional support please see                            -->
+<!--    http://www.qos.ch/shop/products/professionalSupport         -->
+<!--                                                                -->
+<configuration scan="true">
+	<property name="SPARK_HOME" value="{{spark_home}}/current_spark"/>
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%date{HH:mm:ss.SSS} [%-5level] [%logger{5}] %msg%n</pattern>
+		</encoder>
+	</appender>
+	<appender name="FILE-AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${SPARK_HOME}/logs/spark.log</file>
+		<encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+			<!--Pattern>%date{HH:mm:ss,SSS} [%logger{5}] %-5level %msg%n</Pattern-->
+			<Pattern>[%-5level] %date{yyyy-MM-dd HH:mm:ss.SSS,Europe/Zurich} [%logger{5}] %msg%n</Pattern>
+		</encoder>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>${SPARK_HOME}/logs/spark.%d{yyyy-MM-dd}.log.zip</fileNamePattern>
+			<maxHistory>31</maxHistory>
+		</rollingPolicy>
+		<!--triggeringPolicy class="ch.qos.logback.core.rolling.TimeBasedFileNamingAndTriggeringPolicyBase">
+                               <interval>86400000</interval>
+                </triggeringPolicy-->
+	</appender>
+	<root level="INFO">
+		<appender-ref ref="FILE-AUDIT"/>
+	</root>
+	<logger name="fr.tessi.spark" level="INFO" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.spark-project.jetty" level="WARN" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.spark-project.jetty.util.component.AbstractLifeCycle" level="ERROR" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.apache.spark.repl.SparkIMain$exprTyper" level="WARN" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.apache.spark.repl.SparkILoop$SparkILoopInterpreter" level="WARN" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.apache.parquet" level="ERROR" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="parquet" level="ERROR" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.apache.hadoop.hive.metastore.RetryingHMSHandle" level="FATAL" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+	<logger name="org.apache.hadoop.hive.ql.exec.FunctionRegistry" level="ERROR" additivity="false">
+		<appender-ref ref="FILE-AUDIT"/>
+	</logger>
+</configuration>

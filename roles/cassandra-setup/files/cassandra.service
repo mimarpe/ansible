@@ -1,0 +1,14 @@
+[Unit]
+Description=Stop cassandra
+Requires=network.target
+DefaultDependencies=no
+Before=shutdown.target reboot.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/bin/true
+ExecStop=/home/adminged/cassandra_stop.sh
+
+[Install]
+WantedBy=multi-user.target

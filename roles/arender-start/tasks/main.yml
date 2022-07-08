@@ -1,0 +1,63 @@
+# Start Arender if not running already
+---
+# Check if daemon is alive
+- name: Check if Arender is running
+  shell: "ps -ef | grep -i java | grep -v grep | awk '{print $2}'"
+  args:
+    chdir: "{{ arender_home }}"
+    executable: /bin/bash
+  ignore_errors: yes
+  changed_when: false
+  register: process_arender_running
+
+# Start Arender daemon
+- name: Start Arender
+  shell: nohup ./ARenderConsole.sh >> log/arender.log 2>&1 &
+  args:
+    chdir: "{{ arender_home }}/{{arender_dir}}/"
+    executable: /bin/bash
+  async: 100
+  poll: 0
+  ignore_errors: yes
+  register: sout
+  when: process_arender_running.stdout == ""
+
+# Show out
+- name: Show sout
+  debug: 
+    var: sout
+
+- name: Check if node_exporter is running
+  shell: "ps -ef | grep -i node_exporter | grep -v grep | awk '{print $2}'"
+  args:
+    executable: /bin/bash
+  ignore_errors: yes
+  changed_when: false
+  register: process_node_running
+
+- name: Start node_exporter
+  shell: >
+    nohup ./node_exporter 
+    --no-collector.arp 
+    --no-collector.bcache 
+    --no-collector.bonding 
+    --no-collector.edac 
+    --no-collector.entropy 
+    --no-collector.hwmon 
+    --no-collector.infiniband 
+    --no-collector.ipvs 
+    --no-collector.mdadm 
+    --no-collector.netclass 
+    --no-collector.nfs 
+    --no-collector.nfsd 
+    --no-collector.sockstat  
+    --no-collector.timex 
+    --no-collector.vmstat 
+    --no-collector.xfs 
+    --no-collector.zfs 
+    &
+  args:
+    chdir: "{{ arender_home }}/current_node_exporter"
+    executable: /bin/bash
+  when: process_node_running.stdout == ""
+  ignore_errors: yes

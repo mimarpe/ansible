@@ -1,0 +1,24 @@
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    namespace: {{appname}}
+    name: {{appname}}-reader
+  rules:
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "pods"]
+    verbs: ["get", "watch", "list"]
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: {{appname}}-read-pods
+    namespace: {{appname}}
+  subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    apiGroup: ""
+  roleRef:
+    kind: Role
+    name: {{appname}}-reader
+    apiGroup: ""
+

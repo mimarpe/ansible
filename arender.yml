@@ -1,0 +1,11 @@
+---
+- hosts: arendernodes
+  gather_facts: yes
+  
+  roles:
+    - role: arender-setup
+      tags: [ never, setup ]
+    - role: arender-start
+      tags: [ never, start ]
+    - role: arender-stop
+      tags: [ never, stop ]

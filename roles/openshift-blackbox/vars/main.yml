@@ -1,0 +1,5 @@
+blackbox_instance_name: blackbox
+blackbox_instance_port: 9115
+blackbox_image: url.dockerhub.com/prom/blackbox-exporter
+blackbox_home: /home/{{ansible_ssh_user}}
+blackbox_replicas: 1

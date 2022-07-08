@@ -1,0 +1,17 @@
+---
+  # Check if daemon is alive
+  - name: Check if cassandra-exporter is running
+    shell: "ps -ef | grep -i cassandra_exporter | grep -v grep | awk '{print $2}'"
+    args:
+      executable: /bin/bash
+    ignore_errors: yes
+    changed_when: false
+    register: process_cassandra_running     
+    
+  # Kill cassandra exporter
+  - name: Kill running processes
+    shell: "kill {{ item }}"
+    args:
+      executable: /bin/bash
+    with_items: "{{ process_cassandra_running.stdout_lines }}"
+    when: process_cassandra_running.stdout != ""

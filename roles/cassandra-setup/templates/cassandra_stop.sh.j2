@@ -1,0 +1,10 @@
+#!/bin/bash
+
+CPID=`cat {{cassandra_home}}/current_cassandra/bin/cassandra.pid`
+
+echo "Kill Cassandra process: $CPID" > /home/{{ansible_ssh_user}}/cpid
+chown {{ansible_ssh_user}}:ged /home/{{ansible_ssh_user}}/cpid
+echo "Kill Cassandra process: $CPID"
+kill $CPID
+echo "Wait for process to finish, timeout 60s"
+timeout 60 tail --pid=$CPID -f /dev/null

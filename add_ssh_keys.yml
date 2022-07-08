@@ -1,0 +1,7 @@
+# First script to run after installing a machine, to be run like
+# ansible-playbook -i cassandranodes -l <newmachine> add_ssh_keys.yml -k -K
+---
+- hosts: all
+  gather_facts: no
+  roles:
+    - ssh-keys

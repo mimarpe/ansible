@@ -1,0 +1,10 @@
+---
+- hosts: dbnodes
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: cassandra-stop
+    - role: cassandra-start
+  

@@ -1,0 +1,37 @@
+cassandra.host={{groups['cassandranodes'][0]}}
+cassandra.cql.hosts={{ groups['cassandraseeds'][0] }},{{ groups['cassandraseeds'][1] }},{{ groups['cassandraseeds'][2] }}
+cassandra.cql.port=9042
+data.keyspace=keyspacename
+results.keyspace=keyspacename
+cassandra.username=cassandra
+cassandra.password={{ spark_cassandra_pw[env_domain] }}
+percentiles_step=5
+stat.limit=100000
+jobs.home.dir={{ spark_home }}/current_spark/work/
+stat.row.size=100000
+
+{% if cassandra_ssl %}
+#### enable cassandra client to node encryption using ssl
+cassandra.ssl.enable=true
+cassandra.ssl.truststore.path={{cassandra_home}}/current_cassandra/conf/server-truststore.jks
+
+#### Truststore password ciphered without salt with tessi-crypto tool, example:
+####   java -jar tessi-crypto-1.0.1-jar-with-dependencies.jar 'KEYSTORE_PASS'
+####   Ciphered 'KEYSTORE_PASS' = FzTR2aoTXo8hoQocaaTsGA==
+cassandra.ssl.truststore.password={{cassandra_kt_pw_crypto}}
+cassandra.ssl.truststore.type=jks
+
+#### enable client certificate authentication (can be required by the server) (these params will only be considered if ssl is enabled)
+cassandra.ssl.client-auth=true
+
+cassandra.ssl.keystore.path={{ spark_home }}/current_spark/conf/keyStore.jks
+cassandra.ssl.keystore.type=jks
+
+#### Key store password ciphered without salt with tessi-crypto tool, example:
+####   java -jar tessi-crypto-1.0.1-jar-with-dependencies.jar 'KEYSTORE_PASS'
+####   Ciphered 'KEYSTORE_PASS' = FzTR2aoTXo8hoQocaaTsGA==
+cassandra.ssl.keystore.password={{cassandra_kt_pw_crypto}}
+
+{% else %}
+cassandra.ssl.enable=false
+{% endif %}

@@ -1,0 +1,28 @@
+# Stop arender and jmx prometheus exporter if running already
+---
+  # Check if daemon is alive
+  - name: Check if arender is running
+    shell: "ps -ef | grep -i java | grep -v grep | awk '{print $2}'"
+    args:
+      chdir: "{{ arender_home }}"
+      executable: /bin/bash
+    ignore_errors: yes
+    changed_when: false
+    register: process_arender_running     
+    
+  # Kill arender
+  - name: Kill running processes
+    shell: "kill {{ item }}"
+    args:
+      executable: /bin/bash
+    with_items: "{{ process_arender_running.stdout_lines }}"
+    when: process_arender_running.stdout != ""
+    
+  # Wait for the process to stop
+  - name: Wait for process to really stop
+    wait_for:
+      path: "/proc/{{ item }}/status"
+      state: absent
+    with_items: "{{ process_arender_running.stdout_lines }}"
+    ignore_errors: yes
+    when: process_arender_running.stdout != ""

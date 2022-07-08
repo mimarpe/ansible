@@ -1,0 +1,15 @@
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: {{appname}}-grafana
+    labels:
+      app: {{appname}}-grafana
+  spec:
+    ports:
+      - name: http
+        port: {{grafana_instance_port}}
+        protocol: TCP
+        targetPort: {{grafana_instance_port}}
+    selector:
+      app: {{appname}}-grafana
+

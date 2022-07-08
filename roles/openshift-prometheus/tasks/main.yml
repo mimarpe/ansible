@@ -1,0 +1,47 @@
+--- 
+# Create folder for the templates
+- name: Create folder for the templates
+  file:
+    path: "{{ prometheus_home }}/openshift/prometheus/"
+    state: directory
+    mode: 0755
+
+# Templates
+- name: Templates
+  template:
+    src: "{{item.src}}"
+    dest: "{{ prometheus_home }}/openshift/prometheus/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/prometheus.yml.j2, dst: prometheus.yml }
+    - { src: templates/alert-rules.yml.j2, dst: alert-rules.yml }
+    - { src: templates/template.yml.j2, dst: template.yml }
+    - { src: templates/statefulset.yml.j2, dst: statefulset.yml }
+    - { src: templates/service.yml.j2, dst: service.yml }
+    - { src: templates/serviceaccount.yml.j2, dst: serviceaccount.yml }
+    - { src: templates/route.yml.j2, dst: route.yml }
+    - { src: templates/roles.yml.j2, dst: roles.yml }
+
+# Create yml from small partial ymls
+- name: Create yml from small partial ymls 
+  shell: >
+    cat template.yml prometheus.yml alert-rules.yml serviceaccount.yml statefulset.yml 
+    service.yml route.yml roles.yml > prometheus_deploy.yml
+  args:
+    executable: /bin/bash
+    chdir: "{{ prometheus_home }}/openshift/prometheus/"
+    
+# Create components in OpenShift
+- name: Create yml from small partial ymls 
+  shell: "{{prometheus_home}}/bin/oc process -f prometheus_deploy.yml -o yaml | {{prometheus_home}}/bin/oc create -f-"
+  args:
+    executable: /bin/bash
+    chdir: "{{ prometheus_home }}/openshift/prometheus/"
+  register: out_oc
+  
+# Show create outs
+- name: Show create results
+  debug: 
+    var: out_oc

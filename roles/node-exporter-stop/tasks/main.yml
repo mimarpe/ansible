@@ -1,0 +1,17 @@
+---
+  # Check if daemon is alive
+  - name: Check if node-exporter is running
+    shell: "ps -ef | grep -i node_exporter | grep -v grep | awk '{print $2}'"
+    args:
+      executable: /bin/bash
+    ignore_errors: yes
+    changed_when: false
+    register: process_node_running     
+    
+  # Kill node exporter
+  - name: Kill running processes
+    shell: "kill {{ item }}"
+    args:
+      executable: /bin/bash
+    with_items: "{{ process_node_running.stdout_lines }}"
+    when: process_node_running.stdout != ""

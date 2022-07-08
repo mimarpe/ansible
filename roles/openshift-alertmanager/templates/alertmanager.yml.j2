@@ -1,0 +1,47 @@
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: {{appname}}-alertmanager-config
+    labels:
+      app: {{appname}}-alertmanager
+  data:
+    alertmanager.yml: |
+      global:
+        smtp_smarthost: {{ alertmanager_smtp_host }}
+        smtp_from: {{ alertmanager_smtp_address }}
+        smtp_require_tls: false
+
+      templates: 
+      - '/etc/alertmanager/template/*.tmpl'
+
+      route:
+        group_by: ['alertname', 'cluster']
+        group_wait: 30s
+        group_interval: 5m
+
+        repeat_interval: 3h 
+
+        receiver: admins
+
+        routes:
+        - match:
+            severity: critical
+          receiver: admins    
+        - match:
+            severity: warning
+          receiver: admins
+
+      inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'cluster']
+
+      receivers:
+      - name: 'admins'
+        email_configs:
+        - to: '{{alertmanager_destination}}'
+          require_tls: false
+          send_resolved: true
+

@@ -1,0 +1,16 @@
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: {{appname}}-prometheus
+    labels:
+      app: {{appname}}-prometheus
+  spec:
+    ports:
+      - name: http
+        port: {{prometheus_instance_port}}
+        protocol: TCP
+        targetPort: {{prometheus_instance_port}}
+    sessionAffinity: ClientIP
+    selector:
+      app: {{appname}}-prometheus
+

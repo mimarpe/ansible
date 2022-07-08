@@ -1,0 +1,8 @@
+---
+- name: Add ssh keys to the main account
+  #become: true
+  authorized_key:
+    key: "{{ item }}"
+    user: "{{ansible_ssh_user}}"
+  with_file:
+    - fake.pub

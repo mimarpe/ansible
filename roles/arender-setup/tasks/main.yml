@@ -1,0 +1,199 @@
+--- 
+# Create folder for Arender
+- name: Creates directory for Arender
+  file: 
+    path: "{{ arender_home }}" 
+    state: directory
+    group: "rendition"
+
+  #remove old version of renditionService if already exists
+- name: remove old version of rendtionService installation
+  file:
+    path: "{{ arender_home }}/{{arender_dir}}"
+    state: absent
+
+# Download Arender
+- name: Download Arender service zip and check md5
+  get_url:
+     url: "{{ arender_url_download }}"
+     dest: "{{ arender_home }}/{{ arender_package }}"
+     checksum: md5:{{ arender_md5 }}
+     group: "rendition"
+
+  #remove old version of renditionService if already exists
+- name: create rendtionService directory
+  file:
+    path: "{{ arender_home }}/{{arender_dir}}"
+    state: directory
+    group: "rendition" 
+
+- name: Install Arender Service
+  unarchive: 
+     src: "{{arender_home}}/{{ arender_package }}"
+     dest: "{{ arender_home }}/{{arender_dir}}"
+     copy: no
+     group: "rendition"
+
+- name: set rendtionService rights
+  file:
+    path: "{{ arender_home }}/{{arender_dir}}"
+    state: directory
+    group: "rendition"
+    mode: 0770
+
+- name: Find bat files 
+  find:
+    paths: "{{ arender_home }}/{{arender_dir}}"
+    patterns: '*.bat'
+  register: bat_files
+  
+- name : remove bat file
+  file :
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ bat_files.files }}"
+
+- name: Find ps files 
+  find:
+    paths: "{{ arender_home }}/{{arender_dir}}"
+    patterns: '*.ps1'
+  register: ps_files
+  
+- name : remove ps1 file
+  file :
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ ps_files.files }}"
+  
+- name : remove Arender Windows Service
+  file :
+    path: "{{arender_home}}/{{arender_dir}}/service/windows"
+    state: absent
+
+- name: Find sh files 
+  find:
+    paths: "{{ arender_home }}/{{arender_dir}}"
+    patterns: '*.sh'
+  register: sh_files
+  
+- name :  set sh file executable
+  file :
+    path: "{{ item.path }}"
+    mode: 0754
+  with_items: "{{ sh_files.files }}"
+  
+- name: Remove arender jar installer
+  file: 
+     path: "{{ arender_home }}/{{ arender_package }}"
+     state: absent
+
+- name: Template config files for RenditionEngine
+  template:
+    src: "{{item.src}}"
+    dest: "{{ arender_home }}/{{arender_dir}}/modules/RenditionEngine/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/modules/RenditionEngine/logback-spring.xml.j2, dst: logback-spring.xml }
+    - { src: templates/modules/RenditionEngine/application.properties.j2, dst: application.properties }
+    - { src: templates/modules/RenditionEngine/application.yaml.j2, dst: application.yaml }
+
+- name: Template config files for TaskConversion
+  template:
+    src: "{{item.src}}"
+    dest: "{{ arender_home }}/{{arender_dir}}/modules/TaskConversion/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/modules/TaskConversion/logback-spring.xml.j2, dst: logback-spring.xml }
+    
+- name: Template config files for PDFBoxEngine
+  template:
+    src: "{{item.src}}"
+    dest: "{{ arender_home }}/{{arender_dir}}/modules/PDFBoxEngine/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/modules/PDFBoxEngine/logback-spring.xml.j2, dst: logback-spring.xml }
+   
+- name: Template config files for JNIPdfEngine
+  template:
+    src: "{{item.src}}"
+    dest: "{{ arender_home }}/{{arender_dir}}/modules/JNIPdfEngine/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    mode: 0644
+  with_items:
+    - { src: templates/modules/JNIPdfEngine/logback-spring.xml.j2, dst: logback-spring.xml }
+
+# Create folder for log
+- name: Creates directory for Arender log
+  file:
+     path: "{{ arender_home }}/{{arender_dir}}/log"
+     state: directory
+     group: "rendition"
+     mode: 0770
+
+# Download node_exporter
+- name: Download node_exporter tarball and check md5
+  get_url:
+     url: "{{ node_exporter_url_download }}"
+     dest: "{{ arender_home }}/node_exporter.tar.gz"
+     checksum: md5:{{ node_exporter_md5 }}
+     group: "rendition"
+     mode: 0775
+
+# Install node_exporter
+- name: "unarchive node_exporter"
+  unarchive: 
+     src: "{{ arender_home}}/node_exporter.tar.gz"
+     dest: "{{ arender_home }}"
+     copy: no
+     group: "rendition"
+     mode: 0755
+
+#remove tarball from local directory
+- name: Remove node_exporter tarball from local directory
+  file: 
+     path: "{{ arender_home}}/node_exporter.tar.gz"
+     state: absent
+     
+# Create link
+- name: Create symlink to node_exporter
+  file:
+     src: "{{ arender_home }}/node_exporter-{{ node_exporter_version }}.linux-amd64/"
+     dest: "{{ arender_home }}/current_node_exporter"
+     state: link
+     group: "rendition"
+
+# Create folder for prometheus java Agent
+- name: Creates directory for Prometheus java agent
+  file:
+     path: "{{ arender_home }}/prometheus"
+     state: directory
+     group: "rendition"
+
+# Donwload jmx_exporter
+- name: Download jmx_prometheus_javaagent library
+  get_url:
+     url: "{{ jmx_exporter_url_download }}"
+     dest: "{{ arender_home }}/prometheus/jmx_prometheus_javaagent-{{jmx_exporter_version}}.jar"
+     checksum: md5:{{ jmx_exporter_md5 }}
+     group: "rendition"
+     mode: 0660
+
+- name: copy jmx_exporter config files
+  copy:
+     src: "files/arender.yml"
+     dest: "{{ arender_home }}/prometheus/arender.yml"
+     group: "rendition"
+     mode: 0640
+
+- name: update custom_setenv.sh file to reference lib jmx_prometheus_javaagent and set log configuration file
+  template:
+    src: "{{item.src}}"
+    dest: "{{ arender_home }}/{{arender_dir}}/{{item.dst}}"
+    owner: "{{ ansible_ssh_user }}"
+    mode: 0654
+  with_items:
+    - { src: templates/custom_setenv.sh.j2, dst: custom_setenv.sh }
+ 

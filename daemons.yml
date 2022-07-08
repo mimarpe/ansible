@@ -1,0 +1,14 @@
+---
+- hosts: dbnodes
+  gather_facts: yes
+  any_errors_fatal: true
+
+  roles:
+    - role: node-exporter-start
+      tags: [ never, start ]
+    - role: cassandra-exporter-start
+      tags: [ never, start ]
+
+- name: import cassandra.yml
+  import_playbook: cassandra.yml
+  

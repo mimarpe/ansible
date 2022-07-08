@@ -1,0 +1,18 @@
+reaper_instance_name: reaper
+reaper_instance_port: 18080
+reaper_instance_port_s: 8082
+reaper_image: thelastpickle/cassandra-reaper
+reaper_home: /home/{{ansible_ssh_user}}
+cassandra_home: /var/opt/cassandra
+reaper_net: --net=host
+reaper_create_ks: 0
+#reaper_net: -p {{ reaper_instance_port }}:{{ reaper_instance_port }} -p {{ reaper_instance_port_s }}:{{ reaper_instance_port_s }} 
+
+reaper_cluster_name: "Cassandra {{ env_domain }} Cluster"
+reaper_contact_points: "[ {{ groups['cassandraseeds'][0] }}, {{ groups['cassandraseeds'][1] }}, {{ groups['cassandraseeds'][2] }} ]"
+
+reaper_volumes_certs: ""
+reaper_params_ssl: ""
+
+reaper_ssl_jmx_enabled: false
+reaper_ssl_jmx: ""

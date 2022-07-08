@@ -1,0 +1,2 @@
+ansible_ssh_user: arender
+cassandra_home: /var/opt/arender/

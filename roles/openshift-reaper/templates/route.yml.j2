@@ -1,0 +1,36 @@
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    annotations:
+    labels:
+      app: {{appname}}-reaper
+    name: {{appname}}-reaper
+  spec:
+    host: reaper-{{appname}}.{{oc_endpoint[env_domain]}}
+    port:
+      targetPort: http
+    tls:
+      termination: edge
+    to:
+      kind: Service
+      name: {{appname}}-reaper
+    wildcardPolicy: None
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    annotations:
+    labels:
+      app: {{appname}}-reaper
+    name: {{appname}}-reaper-admin
+  spec:
+    host: reaper-admin-{{appname}}.{{oc_endpoint[env_domain]}}
+    port:
+      targetPort: admin
+    tls:
+      termination: edge
+    to:
+      kind: Service
+      name: {{appname}}-reaper
+    wildcardPolicy: None
+

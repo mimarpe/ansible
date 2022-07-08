@@ -1,0 +1,40 @@
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: {{appname}}-reaper-env
+    namespace: {{appname}}
+  data:
+    REAPER_STORAGE_TYPE: "cassandra"
+    REAPER_CASS_CLUSTER_NAME: "{{ reaper_cluster_name }}"
+    REAPER_CASS_CONTACT_POINTS: "{{ reaper_contact_points }}"
+    REAPER_CASS_KEYSPACE: "reaper_db" 
+    REAPER_CASS_ACTIVATE_QUERY_LOGGER: "false" 
+    REAPER_CASS_AUTH_ENABLED: "true"
+    REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED: "false" 
+    REAPER_SEGMENT_COUNT: "16" 
+    REAPER_REPAIR_PARALELLISM: "PARALLEL" 
+    REAPER_REPAIR_INTENSITY: "1.0" 
+    REAPER_REPAIR_RUN_THREADS: "15" 
+    REAPER_ENABLE_CROSS_ORIGIN: "true" 
+    REAPER_INCREMENTAL_REPAIR: "false" 
+    REAPER_ENABLE_DYNAMIC_SEED_LIST: "true" 
+    REAPER_HANGING_REPAIR_TIMEOUT_MINS: "30" 
+    REAPER_SCHEDULE_DAYS_BETWEEN: "3" 
+    REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS: "10" 
+    REAPER_DATACENTER_AVAILABILITY: "ALL" 
+    REAPER_AUTO_SCHEDULING_ENABLED: "true" 
+    REAPER_AUTO_SCHEDULING_INITIAL_DELAY_PERIOD: "PT15S" 
+    REAPER_AUTO_SCHEDULING_PERIOD_BETWEEN_POLLS: "PT10M" 
+    REAPER_AUTO_SCHEDULING_TIME_BEFORE_FIRST_SCHEDULE: "PT5M" 
+    REAPER_AUTO_SCHEDULING_SCHEDULE_SPREAD_PERIOD: "PT6H" 
+    REAPER_JMX_CONNECTION_TIMEOUT_IN_SECONDS: "20" 
+    REAPER_USE_ADDRESS_TRANSLATOR: "false" 
+    REAPER_BLACKLIST_TWCS: "false" 
+    REAPER_METRICS_ENABLED: "true"  
+    REAPER_SHIRO_INI: "/etc/shiro.ini"
+    REAPER_SERVER_APP_PORT: "{{ reaper_instance_port }}"
+    REAPER_SERVER_ADMIN_PORT: "{{ reaper_instance_port_admin }}"
+{% if cassandra_ssl %}
+    REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED: "true"  
+    JAVA_OPTS: "{% if reaper_ssl_jmx_enabled %}-Dssl.enable:true {% endif %}-Djavax.net.ssl.keyStore:/etc/ssl/reaper-server-keystore.jks -Djavax.net.ssl.keyStorePassword:{{cassandra_kt_pw}} -Djavax.net.ssl.trustStore:/etc/ssl/server-truststore.jks -Djavax.net.ssl.trustStorePassword:{{cassandra_kt_pw}}"
+{% endif %}
