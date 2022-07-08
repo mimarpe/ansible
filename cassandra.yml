@@ -2,12 +2,9 @@
 - hosts: dbnodes
   gather_facts: yes
   any_errors_fatal: true
-  
   roles:
     - role: cassandra-setup
       tags: [ never, setup ]
-    - role: cassandra-start
-      tags: [ never, start ]
     - role: cassandra-stop
       tags: [ never, stop ]
     - role: cassandra-snapshot
@@ -16,3 +13,52 @@
       tags: [ never, restore ]
     - role: cassandra-post-setup
       tags: [ never, post-setup ]
+
+- hosts: cassandraseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      tags: [ never, start ]
+      
+- hosts: cassandranonseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      tags: [ never, start ]
+      
+- hosts: elassandraseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      tags: [ never, start ]
+      
+- hosts: elassandranonseeds
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cassandra-start
+      tags: [ never, start ]
+
+
+# Restart needed when setting up elassandra SSL
+- hosts: elassandranodes
+  gather_facts: no
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - { role: cassandra-stop, tags: [ never, post-setup ], when: cassandra_extra_opts == "-e" and insertions=="true" }
+
+- hosts: elassandranodes
+  gather_facts: yes
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - { role: cassandra-start, tags: [ never, post-setup ], when: cassandra_extra_opts == "-e" and insertions=="true" }
+

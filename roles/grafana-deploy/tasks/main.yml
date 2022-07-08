@@ -33,7 +33,8 @@
   with_items:
     - cassandra-dashboard.json
     - nodes-dashboard.json
-    - prometheus-dashboard.json
+    - tomcat-dashboard.json
+    - windows-dashboard.json
 
 # Run docker grafana container
 - name: Create grafana container
@@ -53,5 +54,6 @@
     -e "GF_SMTP_FROM_ADDRESS={{ grafana_smtp_address }}" 
     -e "GF_SMTP_FROM_NAME={{ grafana_smtp_from }}" 
     -e "GF_SMTP_SKIP_VERIFY=true" 
-    -e "GF_SERVER_ROOT_URL=https://{{env_domain}}.domain.com/grafana/"
-    {{ grafana_image }}
+    -e "GF_SERVER_ROOT_URL=https://{{env_domain}}.server.com/grafana/"
+    url.dockerhub.com/{{ grafana_image }}
+    

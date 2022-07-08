@@ -1,8 +1,11 @@
 grafana_instance_name: grafana
 grafana_instance_port: 13000
-grafana_image: grafana/grafana
+grafana_image: grafana/grafana:latest
 grafana_home: /home/{{ansible_ssh_user}}
-grafana_smtp_from: The All-Seeing Eye
-grafana_smtp_address: opsmaster@domain.com
-grafana_smtp_host: smtp.domain.com:25
+grafana_smtp_from: Operations-Monitor
+grafana_smtp_address: admin@server.com
+grafana_smtp_host: smtp.server.com:25
 grafana_net: --net=host
+#grafana_net: -p {{ grafana_instance_port }}:{{ grafana_instance_port }}
+#grafana_cert: "{{grafana_home}}/CA/nginx-selfsigned.crt"
+#grafana_key: "{{grafana_home}}/CA/nginx-selfsigned.key"

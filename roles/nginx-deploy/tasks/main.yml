@@ -7,6 +7,7 @@
     owner: "{{ ansible_ssh_user }}"
     group: "{{ ansible_ssh_user }}"
     mode: 0644
+    backup: yes
     
 # Copy access files
 - name: Copy access files
@@ -34,4 +35,4 @@
     -v {{ nginx_home }}/CA/nginx-selfsigned.key:/etc/nginx/nginx-selfsigned.key 
     -v {{ nginx_home }}/CA/nginx-selfsigned.crt:/etc/nginx/nginx-selfsigned.crt 
     --name={{nginx_instance_name}} 
-    {{ nginx_image }} 
+    url.dockerhub.com/{{ nginx_image }} 

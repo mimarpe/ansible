@@ -14,3 +14,9 @@
     src: "node_exporter-{{ node_exporter_version }}.linux-amd64/"
     dest: "{{ cassandra_home }}/current_node_exporter"
     state: link  
+
+# Remove tarball
+- name: Remove tarball
+  file: 
+    path: "{{ cassandra_home }}/node_exporter.tar.gz"
+    state: absent

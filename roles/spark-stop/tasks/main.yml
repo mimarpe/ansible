@@ -1,15 +1,46 @@
 # Stop Spark if running already, run only on master, stops everything
 ---
-  # Check if daemon is alive
-  - name: Check if Spark is running
-    shell: "ps -ef | grep -i spark | grep -v grep | awk '{print $1}'"
+  # Stop Spark daemon
+  - name: Stop Spark slaves
+    shell: ./stop-slave.sh
     args:
       chdir: "{{ spark_home }}/current_spark/sbin/"
+      executable: /bin/bash
+    async: 100
+    poll: 0
+    ignore_errors: yes
+    register: sout
+
+  # Show sout
+  - name: Show spark stop output
+    debug: 
+      var: sout
+
+  - name: Stop Spark master
+    shell: ./stop-master.sh
+    args:
+      chdir: "{{ spark_home }}/current_spark/sbin/"
+      executable: /bin/bash
+    async: 100
+    poll: 0
+    ignore_errors: yes
+    register: sout
+    when: inventory_hostname == spark_master
+    
+  # Show sout
+  - name: Show spark master stop output
+    debug: 
+      var: sout
+
+  # Check if daemon is alive
+  - name: Check if Spark still running
+    shell: "ps -ef | grep -i spark | grep -v grep | awk '{print $2}'"
+    args:
       executable: /bin/bash
     ignore_errors: yes
     changed_when: false
     register: process_spark_running     
-    
+
   # Kill Spark
   - name: Kill running processes
     shell: "kill {{ item }}"
@@ -17,7 +48,7 @@
       executable: /bin/bash
     with_items: "{{ process_spark_running.stdout_lines }}"
     when: process_spark_running.stdout != ""
-    
+
   # Wait for the process to stop
   - name: Wait for process to really stop
     wait_for:
@@ -26,4 +57,3 @@
     with_items: "{{ process_spark_running.stdout_lines }}"
     ignore_errors: yes
     when: process_spark_running.stdout != ""
-    

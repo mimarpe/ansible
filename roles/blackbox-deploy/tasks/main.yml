@@ -17,5 +17,5 @@
     --name {{blackbox_instance_name}}
     -v {{blackbox_home}}/blackbox.yml:/etc/blackbox/blackbox.yml
     -v {{blackbox_home}}/CA/:/etc/blackbox/CA:ro
-    {{ blackbox_image }}
+    dockerhub.url.com/{{ blackbox_image }}
     --config.file=/etc/blackbox/blackbox.yml

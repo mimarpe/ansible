@@ -12,12 +12,13 @@
 # Create reaper_db keyspace
 - name: Create reaper_db keyspace
   shell: >
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ansible_ssh_user}}@{{groups['cassandranodes'][0]}}
-    {{cassandra_home}}/current_cassandra/bin/cqlsh {{groups['cassandranodes'][0]}} --ssl 
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null adminged@{{groups['cassandranodes'][0]}}
+    {{cassandra_home}}/current_cassandra/bin/cqlsh {{groups['cassandranodes'][0]}} {{cassandra_ssl}} -u cassandra -p {{cassandra_pw[env_domain]}} 
     -e "\"create keyspace if not exists reaper_db 
     with replication={'class' : 'NetworkTopologyStrategy', {{hostvars[groups['cassandranodes'][0]].replication_strategy}} } 
     and durable_writes=true;\""
-
+  when: reaper_create_ks == 1
+  
 # Copy shiro.ini
 - name: Copy shiro.ini
   copy:
@@ -27,18 +28,38 @@
     group: "{{ ansible_ssh_user }}"
     mode: 0644
 
+# Choose correct cassandra ssl parameters (jmx)
+- name: Choose correct cassandra ssl parameters (jmx)
+  set_fact:
+    reaper_ssl_jmx: "-Dssl.enable=true "
+  when: reaper_ssl_jmx_enabled 
+
+# Choose correct cassandra ssl parameters (certs)
+- name: Choose correct cassandra ssl parameters (certs)
+  set_fact:
+    reaper_volumes_certs: "-v {{ reaper_home }}/CA/reaper-server-keystore.jks:/etc/ssl/reaper-server-keystore.jks 
+    -v {{ reaper_home }}/CA/server-truststore.jks:/etc/ssl/server-truststore.jks"
+  when: cassandra_ssl | length | int > 0 
+
+# Choose correct cassandra ssl parameters (params)
+- name: Choose correct cassandra ssl parameters (params)
+  set_fact:
+    reaper_params_ssl: '-e "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED=true" 
+    -e "JAVA_OPTS={{reaper_ssl_jmx}}-Djavax.net.ssl.keyStore=/etc/ssl/reaper-server-keystore.jks -Djavax.net.ssl.keyStorePassword={{cassandra_kt_pw}} -Djavax.net.ssl.trustStore=/etc/ssl/server-truststore.jks -Djavax.net.ssl.trustStorePassword={{cassandra_kt_pw}}"'
+  when: cassandra_ssl | length | int > 0
+
 # Run docker cassandra-reaper container
+# When Cassandra has SSL on but not JMX, remove -Dssl.enable=true 
 - name: Create cassandra-reaper container
   command: >
     docker run 
     -d 
     {{ reaper_net }} 
-    -v {{ reaper_home }}/CA/reaper-server-keystore.jks:/etc/ssl/reaper-server-keystore.jks 
-    -v {{ reaper_home }}/CA/server-truststore.jks:/etc/ssl/server-truststore.jks
+    {{ reaper_volumes_certs }}
     -v {{ reaper_home }}/shiro.ini:/etc/shiro.ini 
     --name={{ reaper_instance_name }} 
     -e "REAPER_JMX_AUTH_USERNAME={{ cassandra_user }}" 
-    -e "REAPER_JMX_AUTH_PASSWORD={{ cassandra_pw }}" 
+    -e "REAPER_JMX_AUTH_PASSWORD={{ cassandra_pw[env_domain] }}" 
     -e "REAPER_STORAGE_TYPE=cassandra" 
     -e "REAPER_CASS_CLUSTER_NAME={{ reaper_cluster_name }}" 
     -e "REAPER_CASS_CONTACT_POINTS={{ reaper_contact_points }}" 
@@ -46,8 +67,9 @@
     -e "REAPER_CASS_ACTIVATE_QUERY_LOGGER=false" 
     -e "REAPER_CASS_AUTH_ENABLED=true" 
     -e "REAPER_CASS_AUTH_USERNAME={{ cassandra_user }}" 
-    -e "REAPER_CASS_AUTH_PASSWORD={{ cassandra_pw }}" 
+    -e "REAPER_CASS_AUTH_PASSWORD={{ cassandra_pw[env_domain] }}" 
     -e "REAPER_SEGMENT_COUNT=16" 
+    -e "REAPER_SEGMENT_COUNT_PER_NODE=16" 
     -e "REAPER_REPAIR_PARALELLISM=PARALLEL" 
     -e "REAPER_REPAIR_INTENSITY=1.0" 
     -e "REAPER_REPAIR_RUN_THREADS=15" 
@@ -56,7 +78,7 @@
     -e "REAPER_ENABLE_DYNAMIC_SEED_LIST=true" 
     -e "REAPER_HANGING_REPAIR_TIMEOUT_MINS=30" 
     -e "REAPER_SCHEDULE_DAYS_BETWEEN=3" 
-    -e "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS=1" 
+    -e "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS=10" 
     -e "REAPER_DATACENTER_AVAILABILITY=ALL" 
     -e "REAPER_AUTO_SCHEDULING_ENABLED=true" 
     -e "REAPER_AUTO_SCHEDULING_INITIAL_DELAY_PERIOD=PT15S" 
@@ -66,12 +88,11 @@
     -e "REAPER_JMX_CONNECTION_TIMEOUT_IN_SECONDS=20" 
     -e "REAPER_USE_ADDRESS_TRANSLATOR=false" 
     -e "REAPER_BLACKLIST_TWCS=false" 
-    -e "REAPER_METRICS_ENABLED=false" 
-    -e "REAPER_AUTH_USER=opsmaster" 
-    -e "REAPER_AUTH_PASSWORD={{ cassandra_opsmaster_pw }}" 
+    -e "REAPER_METRICS_ENABLED=false"
+    -e "REAPER_AUTH_ENABLED=false"  
+    -e "REAPER_AUTH_USER=cassandra" 
+    -e "REAPER_AUTH_PASSWORD={{ cassandra_pw[env_domain] }}" 
     -e "REAPER_SERVER_APP_PORT={{ reaper_instance_port }}" 
-    -e "REAPER_SERVER_ADMIN_PORT={{ reaper_instance_port_s }}" 
-    -e "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED=true" 
-    -e "JAVA_OPTS=-Dssl.enable=true -Djavax.net.ssl.keyStore=/etc/ssl/reaper-server-keystore.jks -Djavax.net.ssl.keyStorePassword={{cassandra_kt_pw}} -Djavax.net.ssl.trustStore=/etc/ssl/server-truststore.jks -Djavax.net.ssl.trustStorePassword={{cassandra_kt_pw}}"
-    {{ reaper_image }}
-        
+    -e "REAPER_SERVER_ADMIN_PORT={{ reaper_instance_port_s }}"
+    {{ reaper_params_ssl }}
+    url.dockerhub.com/{{ reaper_image }}

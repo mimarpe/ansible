@@ -20,3 +20,9 @@ modules:
         insecure_skip_verify: true
         cert_file: /etc/blackbox/CA/{{inventory_hostname}}-cert.pem
         key_file: /etc/blackbox/CA/{{inventory_hostname}}-key.pem
+
+  tcp_nossl:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      tls: false

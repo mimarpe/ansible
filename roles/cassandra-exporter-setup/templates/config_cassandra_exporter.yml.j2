@@ -1,7 +1,7 @@
 host: localhost:7199
 ssl: False
 user: {{ cassandra_user }}
-password: {{ cassandra_pw }}
+password: {{ cassandra_pw[env_domain] }}
 listenPort: 8090
 blacklist:
    # To profile the duration of jmx call you can start the program with the following options
@@ -86,7 +86,7 @@ blacklist:
    
    - org:apache:cassandra:metrics:table:elastic[^:]*:.*
 
-   - org:apache:cassandra:metrics:table:opsmaster[^:]*:.*
+   - org:apache:cassandra:metrics:table:keyspacename:\w+:(?!maxpartitionsize).*:.*
 
    # Don't scrap us
    - com:criteo:nosql:.*

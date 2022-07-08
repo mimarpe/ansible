@@ -22,7 +22,7 @@
     register: sout
     when: process_spark_running.stdout == ""
 
-  # Show cqlsh_out
+  # Show sout
   - name: Show sout
     debug: 
       var: sout

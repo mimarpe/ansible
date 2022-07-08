@@ -34,10 +34,10 @@ route:
 
   # If an alert has successfully been sent, wait 'repeat_interval' to
   # resend them.
-  repeat_interval: 3h 
+  repeat_interval: 48h 
 
   # A default receiver
-  receiver: operations-admins
+  receiver: email
 
   # All the above attributes are inherited by all child routes and can 
   # overwritten on each.
@@ -45,14 +45,14 @@ route:
   # The child route trees.
   routes:
   # This route capture all critical alerts
-  - match:
-      severity: critical
-    receiver: operations-admins
+  #- match:
+  #    severity: critical
+  #  receiver: admins
     
   # This route capture all warning alerts
-  - match:
-      severity: warning
-    receiver: operations-admins
+  #- match:
+  #    severity: warning
+  #  receiver: admins
 
 # Inhibition rules allow to mute a set of alerts given that another alert is
 # firing.
@@ -67,8 +67,8 @@ inhibit_rules:
   equal: ['alertname', 'cluster']
 
 receivers:
-- name: 'operations-admins'
+- name: 'email'
   email_configs:
-  - to: 'operations@domain.com'
+  - to: 'email@server.com'
     require_tls: false
     send_resolved: true

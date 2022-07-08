@@ -13,20 +13,21 @@
   # Start Cassandra daemon
   - name: Start Cassandra
     shell: > 
+      {{ cassandra_start_path }} 
       CASSANDRA_HOME={{ cassandra_home }}/current_cassandra/
       CASSANDRA_CONF={{ cassandra_home }}/current_cassandra/conf/ 
       {{ cassandra_home }}/current_cassandra/bin/cassandra 
-      {{ cassandra_extra_opts }} -p cassandra.pid
-    args:
-      chdir: "{{ cassandra_home }}/current_cassandra/bin/"
-      executable: /bin/bash
+      {{ cassandra_extra_opts }} -p {{ cassandra_home }}/current_cassandra/bin/cassandra.pid
     async: 100
     poll: 0
     ignore_errors: yes
-    register: sout
-    when: process_cassandra_running.stdout == ""
+    when: process_cassandra_running.stdout == "" 
 
-  # Show cqlsh_out
-  - name: Show sout
-    debug: 
-      var: sout
+  # Check instance availability
+  - name: Check instance availability
+    shell: "{{ cassandra_home }}/current_cassandra/bin/nodetool -u {{cassandra_user}} -pw {{ cassandra_pw[env_domain] }} status | grep {{ansible_default_ipv4.address}} | awk '{print $1}'"
+    register: result
+    until: result.stdout.find("UN") != -1
+    retries: 10
+    delay: 10
+    

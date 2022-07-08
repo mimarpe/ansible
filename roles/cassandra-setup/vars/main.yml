@@ -1,2 +1,4 @@
-cassandra_seeds: "{{ansible_play_hosts[0]}},{{ansible_play_hosts[1]}},{{ansible_play_hosts[2]}}"
-cassandra_numtokens: 8
+heap_size: 14G
+newgen_size: 8G
+batch_size_warn: 50
+batch_size_fail: 150

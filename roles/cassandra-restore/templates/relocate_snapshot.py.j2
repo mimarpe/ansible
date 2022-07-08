@@ -11,33 +11,22 @@ def gen_find_dirs(filepat,top):
 # Main
 # find repertoires snapshot
 base_path = "{{ cassandra_data_dir }}/"
-repertoires = gen_find_dirs("*opsmastersnap", base_path)
+repertoires = gen_find_dirs("*archive", base_path)
 
 # deplacer fichiers du repertoire snapshot vers nouveau repertoire
 for rep in repertoires:
-    # on exclude CFs system and nodes
-    if base_path+"system" not in rep and base_path+"nodes" not in rep:
-        print "Processing: " + rep
+    # on exclude CFs nodes, in the past also system: base_path+"system" not in rep and
+    if base_path+"nodes" not in rep:
+        print("Processing: " + rep)
 
         # prepare les paths
-        parts = rep.split("/") # [1] data [2] cassandra [3] keyspace [4] cf
-        cf_parts = parts[4].split("-") # [0] nom cf [1] uuid
-        ks_path = base_path+parts[3]
-        cf_path_delete = ks_path + "/" + parts[4]
+        parts = rep.split("/") # [1] data [2] cassandra [3] keyspace [4] cf [5] snapshots [6] archive
+        dst = base_path + parts[3] + "/" + parts[4] + "/"
         rep = rep + "/"
 
-        # loop keyspaces
-        for cf in os.listdir(ks_path):
-            # trouver le nouveau repertoire CF (nouveau UUID)
-            if cf.startswith(cf_parts[0]+"-") and cf_parts[1] not in cf:
-                entries_to_mv = os.listdir(rep)
-                dst = ks_path + "/" + cf + "/"
+        entries_to_mv = os.listdir(rep)
 
-                # mv fichiers snapshot vers repertoire final
-                for f in entries_to_mv:
-                    print "mv " + rep+f + " -> " + dst
-                    shutil.move(rep+f, dst)
-
-                # virer repertoire CF du snapshot
-                print "rm -rf " + cf_path_delete
-                shutil.rmtree(cf_path_delete, ignore_errors=True)
+        # mv fichiers snapshot vers repertoire final
+        for f in entries_to_mv:
+            print("mv " + rep+f + " -> " + dst)
+            shutil.move(rep+f, dst)

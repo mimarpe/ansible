@@ -1,5 +1,0 @@
-archive_desc: "{{ ansible_date_time.date }}"
-main_seed: "{{ ansible_play_hosts[0] }}"
-second_seed: "{{ ansible_play_hosts[1] }}"
-command_restore: dsmc rest -su=yes -ifnewer -rep=y
-command_retrieve: dsmc retrieve -su=yes -rep=y -desc={{ archive_desc }}

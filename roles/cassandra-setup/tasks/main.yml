@@ -41,14 +41,22 @@
         #- { src: files/jmxremote.password    , dest: "{{ cassandra_home }}/current_cassandra/conf/jmxremote.password" }
         #- { src: copy/rc.local              , dest: /etc/rc.local }
         
-    # jmxremote.password
-    - name: Copy jmxremote.password
+    # Copy templates
+    - name: Copy templates
       template:
-        src: jmxremote.password.j2
-        dest: "{{ cassandra_home }}/current_cassandra/conf/jmxremote.password"
-        owner: "{{ ansible_ssh_user }}"
-        group: ged
-        mode: 0400
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      with_items:
+        - src: jmxremote.password.j2
+          dest: "{{ cassandra_home }}/current_cassandra/conf/jmxremote.password"
+          mode: "0400"
+        - src: jvm.options.j2
+          dest: "{{ cassandra_home }}/current_cassandra/conf/jvm.options"
+          mode: "0640"
+        - src: cassandra_stop.sh.j2
+          dest: "/home/{{ansible_ssh_user}}/cassandra_stop.sh"
+          mode: "0750"
 
     #https://tobert.github.io/pages/als-cassandra-21-tuning-guide.html
 
@@ -93,12 +101,29 @@
         backup=no'
     
     # Edit endpoint_snitch
-    - name: Replace endpoint_snitch
+    - name: Edit endpoint_snitch
       replace: 
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
         regexp="endpoint_snitch:\s[^\n]*\n" 
         replace="endpoint_snitch: GossipingPropertyFileSnitch\n"
         backup=no'
+    
+    # Edit dynamic_snitch
+    #- name: Edit dynamic_snitch
+    #  lineinfile:
+    #    path: "{{ cassandra_home }}/current_cassandra/conf/cassandra.yaml"
+    #    regexp: 'dynamic_snitch:\s[^\n]*\n'
+    #    insertafter: 'endpoint_snitch:\s[^\n]*\n'
+    #    line: 'dynamic_snitch: false'
+    #    backup: no
+        
+    # Edit enable_materialized_views
+    - name: Edit enable_materialized_views
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="enable_materialized_views:\s[^\n]*\n" 
+        replace="enable_materialized_views: false\n"
+        backup=no'    
         
     # Edit seeds
     - name: Replace seeds
@@ -129,7 +154,7 @@
       replace: 
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
         regexp="concurrent_reads:\s[^\n]*\n" 
-        replace="concurrent_reads: 256\n"
+        replace="concurrent_reads: 64\n"
         backup=no'
 
     # Edit concurrent_writes
@@ -137,7 +162,7 @@
       replace: 
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
         regexp="concurrent_writes:\s[^\n]*\n" 
-        replace="concurrent_writes: 128\n"
+        replace="concurrent_writes: 64\n"
         backup=no'
         
     # Edit concurrent_counter_writes
@@ -145,7 +170,15 @@
       replace: 
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
         regexp="concurrent_counter_writes:\s[^\n]*\n" 
-        replace="concurrent_counter_writes: 128\n"
+        replace="concurrent_counter_writes: 64\n"
+        backup=no'
+        
+    # Edit memtable_allocation_type
+    - name: Replace memtable_allocation_type
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="memtable_allocation_type:\s[^\n]*\n" 
+        replace="memtable_allocation_type: offheap_objects\n"
         backup=no'
         
     # Edit memtable_flush_writers
@@ -153,15 +186,127 @@
       replace: 
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
         regexp="#memtable_flush_writers:\s[^\n]*\n" 
-        replace="memtable_flush_writers: 8\n"
+        replace="memtable_flush_writers: 2\n"
+        backup=no'
+
+    # Edit tombstone_warn_threshold
+    - name: Replace tombstone_warn_threshold
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml
+        regexp="tombstone_warn_threshold:\s[^\n]*\n"
+        replace="tombstone_warn_threshold: 100000\n"
+        backup=no'
+
+    # Edit tombstone_failure_threshold
+    - name: Replace tombstone_failure_threshold
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml
+        regexp="tombstone_failure_threshold:\s[^\n]*\n"
+        replace="tombstone_failure_threshold: 1000000\n"
         backup=no'
         
-    # Edit key_cache_size
-    - name: Replace key_cache_size
+#    # Edit key_cache_size
+#    - name: Replace key_cache_size
+#      replace: 
+#        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+#        regexp="key_cache_size_in_mb:\s*\n" 
+#        replace="key_cache_size_in_mb: 1024\n"
+#        backup=no'
+        
+    # Edit compaction_throughput_mb_per_sec
+    - name: Replace compaction_throughput_mb_per_sec
       replace: 
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
-        regexp="key_cache_size_in_mb:\s*\n" 
-        replace="key_cache_size_in_mb: 1024\n"
+        regexp="compaction_throughput_mb_per_sec:\s[^\n]*\n" 
+        replace="compaction_throughput_mb_per_sec: 80\n"
+        backup=no'
+        
+    # Edit concurrent_compactors
+    - name: Replace concurrent_compactors
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="#concurrent_compactors:\s[^\n]*\n" 
+        replace="concurrent_compactors: 2\n"
+        backup=no'    
+
+    # Edit max_hint_window_in_ms
+    - name: Replace max_hint_window_in_ms
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="max_hint_window_in_ms:\s[^\n]*\n" 
+        replace="max_hint_window_in_ms: 18000000\n"
+        backup=no'
+        
+    # Edit hinted_handoff_throttle_in_kb
+    - name: Replace hinted_handoff_throttle_in_kb
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="hinted_handoff_throttle_in_kb:\s[^\n]*\n" 
+        replace="hinted_handoff_throttle_in_kb: 102400\n"
+        backup=no'
+        
+    # Edit max_hints_delivery_threads
+    - name: Replace max_hints_delivery_threads
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="max_hints_delivery_threads:\s[^\n]*\n" 
+        replace="max_hints_delivery_threads: 16\n"
+        backup=no'
+        
+    # Edit batch_size_warn_threshold_in_kb
+    - name: Edit batch_size_warn_threshold_in_kb
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="batch_size_warn_threshold_in_kb:\s[^\n]*\n" 
+        replace="batch_size_warn_threshold_in_kb: {{batch_size_warn}}\n"
+        backup=no'
+        
+    # Edit batch_size_fail_threshold_in_kb
+    - name: Edit batch_size_fail_threshold_in_kb
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="batch_size_fail_threshold_in_kb:\s[^\n]*\n" 
+        replace="batch_size_fail_threshold_in_kb: {{batch_size_fail}}\n"
+        backup=no'
+        
+    # Edit allocate_tokens_for_keyspace
+    - name: Edit allocate_tokens_for_keyspace
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="\#\sallocate_tokens_for_keyspace:\s[^\n]*\n" 
+        replace="allocate_tokens_for_keyspace: {{keyspace_allocate}}\n"
+        backup=no'
+      when: env_domain != 'restore'
+        
+    # Edit roles_validity_in_ms
+    - name: Edit roles_validity_in_ms
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="roles_validity_in_ms:\s[^\n]*\n" 
+        replace="roles_validity_in_ms: 30000\n"
+        backup=no'
+        
+    # Add streaming_socket_timeout_in_ms 
+    - name: Add streaming_socket_timeout_in_ms
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/cassandra.yaml"
+        regexp: 'streaming_socket_timeout_in_ms:\s[^\n]*\n'
+        line: "streaming_socket_timeout_in_ms: 86400000\n"
+        
+    # Edit permissions_validity_in_ms
+    - name: Edit permissions_validity_in_ms
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="permissions_validity_in_ms:\s[^\n]*\n" 
+        replace="permissions_validity_in_ms: 30000\n"
+        backup=no'
+        
+    # Edit credentials_validity_in_ms
+    - name: Edit credentials_validity_in_ms
+      replace: 
+        'dest={{ cassandra_home }}/current_cassandra/conf/cassandra.yaml 
+        regexp="credentials_validity_in_ms:\s[^\n]*\n" 
+        replace="credentials_validity_in_ms: 30000\n"
         backup=no'
         
     # Edit server_encryption_options internode_encryption
@@ -304,9 +449,20 @@
       replace:
         'dest={{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh
         regexp="JVM_OPTS=\"\$JVM_OPTS \$JVM_EXTRA_OPTS"
-        replace="JVM_OPTS=\"$JVM_OPTS -Djava.io.tmpdir={{ cassandra_home }}/current_cassandra/tmp\" \nJVM_OPTS=\"$JVM_OPTS $JVM_EXTRA_OPTS"
+        replace="JVM_OPTS=\"$JVM_OPTS -Djava.io.tmpdir={{ cassandra_home }}/current_cassandra/tmp"
         backup=no'               
+              
+    - name: Insert -Des.http.cname_in_publish_address=true
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh"
+        line: 'JVM_OPTS="$JVM_OPTS -Des.http.cname_in_publish_address=true"'
+      when: cassandra_extra_opts == "-e" 
     
+    - name: Insert extra opts at the end
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/cassandra-env.sh"
+        line: 'JVM_OPTS="$JVM_OPTS $JVM_EXTRA_OPTS"'
+            
     # Read-only jmxremote.password    
     - file: path={{ cassandra_home }}/current_cassandra/conf/jmxremote.password mode="400"
 
@@ -375,14 +531,6 @@
         backup=no'
       when: cassandra_extra_opts == "-e"
 
-    - name: Replace network host
-      replace:
-        'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
-        regexp="\#network.host:\s[^\n]*\n"
-        replace="network.host: {{ ansible_default_ipv4.address }}\n"
-        backup=no'
-      when: cassandra_extra_opts == "-e"
-      
     - name: Replace http port
       replace:
         'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
@@ -391,3 +539,157 @@
         backup=no'
       when: cassandra_extra_opts == "-e"
 
+    - name: Replace network host
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "network.host: 0.0.0.0"
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Insert bootstrap.system_call_filter
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "bootstrap.system_call_filter: false"
+      when: cassandra_extra_opts == "-e"      
+
+    - name: Replace http.publish_host
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "http.publish_host: {{inventory_hostname}}"
+      when: cassandra_extra_opts == "-e"
+            
+    - name: Replace xpack.security.enabled
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.enabled: true"
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace xpack.security.http.ssl.enabled
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.http.ssl.enabled: false"
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace xpack.security.http.ssl.keystore.path
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.http.ssl.keystore.path: {{inventory_hostname}}.jks"
+      when: cassandra_extra_opts == "-e"
+
+    - name: Insert xpack.security.http.ssl.keystore.password
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.http.ssl.keystore.password: {{cassandra_kt_pw}}"
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace xpack.security.http.ssl.truststore.path
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.http.ssl.truststore.path: server-truststore.jks"
+      when: cassandra_extra_opts == "-e"
+
+    - name: Insert xpack.security.http.ssl.truststore.password
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.http.ssl.truststore.password: {{cassandra_kt_pw}}"
+      when: cassandra_extra_opts == "-e"  
+      
+    - name: Insert xpack.security.http.ssl.truststore.password
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.http.ssl.client_authentication: required"
+      when: cassandra_extra_opts == "-e"            
+      
+    - name: Insert xpack.security.transport.ssl.enabled
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.enabled: false"
+      when: cassandra_extra_opts == "-e"
+
+    - name: Replace xpack.security.transport.ssl.keystore.path
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.keystore.path: {{inventory_hostname}}.jks"
+      when: cassandra_extra_opts == "-e"
+
+    - name: Insert xpack.security.transport.ssl.keystore.password
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.keystore.password: {{cassandra_kt_pw}}"
+      when: cassandra_extra_opts == "-e"
+      
+    - name: Replace xpack.security.transport.ssl.truststore.path
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.truststore.path: server-truststore.jks"
+      when: cassandra_extra_opts == "-e"
+
+    - name: Insert xpack.security.transport.ssl.truststore.password
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.truststore.password: {{cassandra_kt_pw}}"
+      when: cassandra_extra_opts == "-e"  
+      
+    - name: Insert xpack.security.transport.ssl.truststore.password
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.client_authentication: required"
+      when: cassandra_extra_opts == "-e" 
+      
+    - name: Insert xpack.security.transport.ssl.verification_mode
+      lineinfile:
+        path: "{{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml"
+        line: "xpack.security.transport.ssl.verification_mode: certificate"
+      when: cassandra_extra_opts == "-e"       
+      
+    - name: Replace ES_HOME
+      replace:
+        'dest={{ cassandra_home }}/current_cassandra/bin/elasticsearch-env
+        regexp="ES_HOME=[^\n]*dirname[^\n]*\n"
+        replace="ES_HOME={{cassandra_home}}/current_cassandra\n"
+        backup=yes'
+      when: cassandra_extra_opts == "-e"
+     
+    # create elastic keystore
+    - name: create elastic keystore
+      shell: > 
+        echo y | ./elasticsearch-keystore create 
+      args: 
+        executable: /bin/bash
+        chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+      when: cassandra_extra_opts == "-e"
+      
+    # create elastic keystore password
+    - name: create elastic keystore password
+      shell: > 
+        echo {{ cassandra_pw[env_domain] }} | ./elasticsearch-keystore add "bootstrap.password" 
+      args: 
+        executable: /bin/bash
+        chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+      when: cassandra_extra_opts == "-e"      
+      
+    # Permissions for Splunk for installation
+    - name: Permissions for Splunk for installation
+      file: 
+        path: "{{ cassandra_home }}/{{ cassandra_installation_type }}-{{ cassandra_version }}"
+        mode: 0755
+        
+    # Permissions for Splunk for logs
+    - name: Permissions for Splunk for logs
+      file: 
+        path: "{{ cassandra_home }}/{{ cassandra_installation_type }}-{{ cassandra_version }}/logs"
+        state: directory
+        mode: 0755
+        
+    # Remove tarball
+    - name: Remove tarball
+      file: 
+        path: "{{ cassandra_home }}/{{ cassandra_installation_type }}.tar.gz"
+        state: absent
+      
+    # ATTENTION for first time starting cluster
+    # You need to pass the initial_token flag to the seeds, comment out allocate_tokens_for_keyspace and uncomment once started
+    # In that case, you only start the seeds and create the main keyspace (used as allocate_tokens_for_keyspace argument)
+    # $ python
+    # >>> num_tokens = {{num_tokens}}
+    # >>> num_racks = 3
+    # >>> print "\n".join(['[Node {}] initial_token: {}'.format(r + 1, ','.join([str(((2**64 / (num_tokens * num_racks)) * (t * num_racks + r)) - 2**63) for t in range(num_tokens)])) for r in range(num_racks)])

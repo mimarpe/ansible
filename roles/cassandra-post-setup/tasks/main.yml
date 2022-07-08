@@ -1,8 +1,37 @@
 --- 
-# alter replication strategy on keyspaces
+# Create .cassandra
+- name: Create .cassandra
+  file:
+    path: "/home/{{ ansible_ssh_user }}/.cassandra"
+    state: directory
+    mode: 0755
+
+# create password file 
+- name: create password file 
+  shell: > 
+    echo {{ cassandra_pw[env_domain] }} > {{ cassandra_home }}/current_cassandra/.pw
+  args: 
+    executable: /bin/bash
+
+# Copy cqlshrc
+- name: Copy cqlshrc
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    backup: no
+  with_items:
+    - { src: "cqlshrc.j2", dest: "/home/{{ansible_ssh_user}}/.cassandra/cqlshrc" } 
+  
+# Permissions for cqlshrc
+- name: Permissions for cqlshrc
+  file:
+    path: /home/{{ansible_ssh_user}}/.cassandra/cqlshrc
+    mode: '0750'  
+    
+# alter replication strategy on keyspaces - replace -u -p by --ssl when ssl ready
 - name: alter replication strategy on keyspaces
   shell: > 
-    ./cqlsh {{inventory_hostname}} --ssl 
+    ./cqlsh {{inventory_hostname}} {{cassandra_ssl}} -u cassandra -p cassandra  
     -e "alter keyspace {{ item }} with replication={ 'class' : 'NetworkTopologyStrategy', {{replication_strategy}} };"
   args: 
     executable: /bin/bash
@@ -11,43 +40,76 @@
     - system_auth
     - system_traces
     - system_distributed
-  when: inventory_hostname == main_seed
+  when: inventory_hostname == main_seed and insertions
 
 # alter replication strategy on extra keyspaces for elassandra  
 - name: alter replication strategy on extra keyspaces for elassandra
   shell: > 
-    ./cqlsh {{inventory_hostname}} --ssl 
+    ./cqlsh {{inventory_hostname}} {{cassandra_ssl}} -u cassandra -p cassandra 
     -e "alter keyspace {{ item }} with replication={ 'class' : 'NetworkTopologyStrategy', {{replication_strategy}} };"
   args: 
     executable: /bin/bash
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
   with_items:
     - elastic_admin
-  when: cassandra_extra_opts == "-e" and inventory_hostname == main_seed  
-  
-# create opsmaster user
-- name: create opsmaster user
-  shell: > 
-    ./cqlsh {{inventory_hostname}} --ssl 
-    -e "CREATE USER opsmaster WITH PASSWORD '{{ cassandra_opsmaster_pw }}' SUPERUSER;"
-    # ALTER USER cassandra WITH PASSWORD 'password' NOSUPERUSER;
-  args: 
-    executable: /bin/bash
-    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
-  ignore_errors: yes
-  when: inventory_hostname == main_seed
+  when: cassandra_extra_opts == "-e" and inventory_hostname == main_seed and insertions
   
 # alter cassandra user
 - name: alter cassandra user
   shell: > 
-    ./cqlsh {{inventory_hostname}} --ssl 
-    -e "ALTER USER {{cassandra_user}} WITH PASSWORD '{{ cassandra_pw }}';"
+    ./cqlsh {{inventory_hostname}} {{cassandra_ssl}} -u cassandra -p cassandra 
+    -e "ALTER USER {{cassandra_user}} WITH PASSWORD '{{ cassandra_pw[env_domain] }}';"
   args: 
     executable: /bin/bash
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
   ignore_errors: yes
-  when: inventory_hostname == main_seed
-    
+  when: inventory_hostname == main_seed and insertions
+
+# alter elastic password
+- name: alter elastic password - create _security index
+  uri:
+    url: http://{{ inventory_hostname }}:9200/_xpack/security/user/elastic/_password?pretty
+    user: "elastic"
+    password: "{{ cassandra_pw[env_domain] }}"
+    method: PUT
+    force_basic_auth: yes
+    #status_code: 201
+    body: 
+      password: "{{ cassandra_pw[env_domain] }}"
+    body_format: json
+  when: inventory_hostname == main_seed and cassandra_extra_opts == "-e" and insertions
+  
+# create user for ssl
+- name: create user for ssl
+  uri:
+    url: http://{{ inventory_hostname }}:9200/_xpack/security/user/cassandra?pretty
+    user: "elastic"
+    password: "{{ cassandra_pw[env_domain] }}"
+    method: POST
+    force_basic_auth: yes
+    #status_code: 201
+    body: 
+      password: "{{ cassandra_pw[env_domain] }}"
+      roles: ["superuser"]
+    body_format: json
+  when: inventory_hostname == main_seed and cassandra_extra_opts == "-e" and insertions
+
+- name: Replace xpack.security.http.ssl.enabled
+  replace:
+    'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+    regexp="xpack.security.http.ssl.enabled:\s[^\n]*\n"
+    replace="xpack.security.http.ssl.enabled: true\n"
+    backup=no'
+  when: cassandra_extra_opts == "-e" and insertions
+
+- name: Replace xpack.security.transport.ssl.enabled
+  replace:
+    'dest={{ cassandra_home }}/current_cassandra/conf/elasticsearch.yml
+    regexp="xpack.security.transport.ssl.enabled:\s[^\n]*\n"
+    replace="xpack.security.transport.ssl.enabled: true\n"
+    backup=no'
+  when: cassandra_extra_opts == "-e" and insertions
+
 # aliases in bashrc
 - name: aliases in bashrc
   lineinfile:
@@ -57,6 +119,7 @@
     state: present
   loop:
     - { alias: cdc, command: "cd {{ cassandra_home }}" }
+    - { alias: cdcc, command: "cd {{ cassandra_home }}/current_cassandra/conf" }
     - { alias: cdd, command: "cd {{ cassandra_data_dir }}" }
     - { alias: l,  command: "ls -l" }
     
@@ -69,13 +132,12 @@
     state: present
   loop:
     - { var: CASSANDRA_HOME, value: "{{ cassandra_home }}/current_cassandra/" }
-    #- { var: CASSANDRA_CONF,  value: "{{ cassandra_home }}/current_cassandra/conf/" }
+#    - { var: DSM_CONFIG, value: "/opt/tivoli/tsm/client/ba/bin/dsm_applis.opt" }
     
 # Add cassandra bin to PATH
 - name: Add cassandra bin to PATH
   replace: 
-    'dest=/home/{{ ansible_ssh_user }}/.bash_profile 
+    'dest=/home/{{ ansible_ssh_user }}/.bashrc 
     regexp="export PATH\n" 
     replace="export PATH={{ cassandra_home }}/current_cassandra/bin/:$PATH\n" 
     backup=yes'
-    

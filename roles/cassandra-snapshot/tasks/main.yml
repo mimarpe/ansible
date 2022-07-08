@@ -1,7 +1,23 @@
 ---
+# Remove temporary files for safety
+- name: Remove temporary files
+  file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+    - "{{ cassandra_data_dir }}/filestobackup"
+    - "{{ cassandra_data_dir }}/tokens"
+    - "{{ cassandra_data_dir }}/full_schema.cql"
+      
+# Run nodetool cleanup to ensure that invalid replicas are removed
+- name: nodetool cleanup
+  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw[env_domain] }} cleanup
+  args:
+    chdir: "{{ cassandra_home }}/current_cassandra/bin/"
+
 # Save the token ranges
 - name: nodetool ring
-  shell: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw }} ring | grep {{ ansible_default_ipv4.address }} | awk '{print $NF ","}' > {{ cassandra_data_dir }}/tokens
+  shell: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw[env_domain] }} ring | grep {{ ansible_default_ipv4.address }} | awk '{print $NF ","}' > {{ cassandra_data_dir }}/tokens
   args:  
     executable: /bin/bash 
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
@@ -15,20 +31,20 @@
          
 # Describe keyspaces schema 
 - name: desc keyspaces schema 
-  shell: ./cqlsh {{inventory_hostname}} -u {{ cassandra_user }} -p {{ cassandra_pw }} -e 'desc schema' > {{ cassandra_data_dir }}/full_schema.cql   
+  shell: ./cqlsh {{inventory_hostname}} {{cassandra_ssl}} -u {{ cassandra_user }} -p {{ cassandra_pw[env_domain] }} -e 'desc schema' > {{ cassandra_data_dir }}/full_schema.cql   
   args:
     executable: /bin/bash
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
-      
-# Run nodetool cleanup to ensure that invalid replicas are removed
-- name: nodetool cleanup
-  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw }} cleanup
+
+# Clear the snapshot for safety
+- name: nodetool clearsnapshot
+  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw[env_domain] }} clearsnapshot -t archive
   args:
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
   
 # Create the snapshot hardlinks for the SSTables
 - name: nodetool snapshot
-  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw }} snapshot -t opsmaster
+  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw[env_domain] }} snapshot -t archive
   args:
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
 
@@ -39,49 +55,50 @@
 # Choose correct retention and backup command
 - name: Set the correct retention policy depending on day of week and day of month
   set_fact:
-    retention_policy: "R1Y"
-  when: ansible_date_time.weekday == 'Saturday' and ansible_date_time.day <= 7
-  
+    retention_policy: "{{retention_policy_month}}"
+  when: ansible_date_time.weekday == snapshot_day[env_domain] and ansible_date_time.day|int <= 7
+
+- name: Set the correct retention policy depending on day of week and day of month and month
+  set_fact:
+    retention_policy: "{{retention_policy_year}}"
+  when: ansible_date_time.weekday == snapshot_day[env_domain] and ansible_date_time.day|int <= 7 and ansible_date_time.month|int == 12
+
 - name: Set the correct backup command depending on day of week and day of month
   set_fact:
     command_backup: "{{ command_archive }} -archmc={{ retention_policy }}"
-  when: ansible_date_time.hour == 23
-  
-# Backup schema
-- name: Backup schema
-  shell: "{{ command_backup }} {{ cassandra_data_dir }}/full_schema.cql"
-  args:
-    executable: /bin/bash
-  register: dsmc_schema_out
-  failed_when: dsmc_schema_out.rc != 0
-  #when: inventory_hostname == ansible_play_hosts | first
-  
-# Backup tokens
-- name: Backup tokens
-  shell:  "{{ command_backup }} {{ cassandra_data_dir }}/tokens"
-  args:
-    executable: /bin/bash
-  register: dsmc_tokens_out
-  failed_when: dsmc_tokens_out.rc != 0
-  
-# Backup elasticsearch indices
-- name: Backup elasticsearch indices
-  shell:  "{{ command_backup }} {{ cassandra_data_dir }}/nodes"
-  args:
-    executable: /bin/bash
-  when: cassandra_extra_opts == "-e"
-  register: dsmc_nodes_out
-  failed_when: dsmc_nodes_out.rc != 0
+  when: ansible_date_time.weekday == snapshot_day[env_domain] and ansible_date_time.hour == snapshot_time[env_domain]
   
 # Find the snapshot directories
 - name: Find the snapshot directories
-  shell: find {{ cassandra_data_dir }}/ -exec sh -c 'printf "%s\n" "$0"' {} \; | grep -v system | grep opsmaster | xargs -n 1 echo $@ >> {{ cassandra_data_dir }}/filestobackup 
+  shell: find {{ cassandra_data_dir }}/ -exec sh -c 'printf "%s\n" "$0"' {} \; | grep archive | xargs -n 1 echo $@ >> {{ cassandra_data_dir }}/filestobackup 
   args:
     executable: /bin/bash
-  
+
+# Add schema
+- name: Add schema to filestobackup
+  lineinfile:
+    path: "{{ cassandra_data_dir }}/filestobackup"
+    line: "{{ cassandra_data_dir }}/full_schema.cql"
+    insertbefore: BOF
+
+# Add tokens
+- name: Add tokens to filestobackup
+  lineinfile:
+    path: "{{ cassandra_data_dir }}/filestobackup"
+    line: "{{ cassandra_data_dir }}/tokens"
+    insertbefore: BOF
+    
+# Add nodes
+- name: Add nodes to filestobackup
+  lineinfile:
+    path: "{{ cassandra_data_dir }}/filestobackup"
+    line: "{{ cassandra_data_dir }}/nodes"
+    insertbefore: BOF
+  when: cassandra_extra_opts == "-e"
+
 # Upload to TSM
 - name: Upload to TSM
-  shell: "{{ command_backup }} -filelist={{ cassandra_data_dir }}/filestobackup" 
+  shell: "timeout {{ timeout }} {{ command_backup }} -filelist={{ cassandra_data_dir }}/filestobackup" 
   args:
     executable: /bin/bash
   register: dsmc_out
@@ -101,13 +118,16 @@
   
 # Clear the snapshot
 - name: nodetool clearsnapshot
-  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw }} clearsnapshot -t opsmaster
+  command: ./nodetool -u {{ cassandra_user }} -pw {{ cassandra_pw[env_domain] }} clearsnapshot -t archive
   args:
     chdir: "{{ cassandra_home }}/current_cassandra/bin/"
-    
+
 # Remove temporary files
 - name: Remove temporary files
-  shell: > 
-    rm {{ cassandra_data_dir }}/filestobackup {{ cassandra_data_dir }}/tokens {{ cassandra_data_dir }}/full_schema.cql
-  args: 
-    executable: /bin/bash
+  file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+    - "{{ cassandra_data_dir }}/filestobackup"
+    - "{{ cassandra_data_dir }}/tokens"
+    - "{{ cassandra_data_dir }}/full_schema.cql"

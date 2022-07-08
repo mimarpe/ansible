@@ -5,8 +5,8 @@ alertmanager_home: /home/{{ansible_ssh_user}}
 alertmanager_net: --net=host
 #alertmanager_net: -p {{ alertmanager_instance_port }}:{{ alertmanager_instance_port }}
 
-alertmanager_smtp_from: Ops monitor
-alertmanager_smtp_address: operations.monitor@domain.com
-alertmanager_smtp_host: smtp.domain.com:25
+alertmanager_smtp_from: Operations monitor
+alertmanager_smtp_address: theallseeingeye@server.com
+alertmanager_smtp_host: smtp.server.com:25
 alertmanager_port: 9094
 alertmanager_peer: "{{ ansible_play_hosts[1] }}:{{ alertmanager_port }}"

@@ -23,12 +23,12 @@
     --no-collector.netclass 
     --no-collector.nfs 
     --no-collector.nfsd 
+    --no-collector.pressure 
     --no-collector.sockstat 
-    --no-collector.stat 
     --no-collector.timex 
     --no-collector.vmstat 
-    --no-collector.xfs 
-    --no-collector.zfs 
+    --no-collector.xfs
+    --no-collector.zfs  
     &
   args:
     chdir: "{{ cassandra_home }}/current_node_exporter/"

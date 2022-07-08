@@ -4,7 +4,7 @@
   file:
     path: "{{ docker_volumes_dir }}/{{alertmanager_instance_name}}_volume/"
     state: directory
-    mode: 0755
+    mode: 0750
 
 # Copy alertmanager config
 - name: Copy alertmanager config
@@ -40,10 +40,10 @@
     -v {{ docker_volumes_dir }}/{{alertmanager_instance_name}}_volume/:/alertmanager 
     --name={{alertmanager_instance_name}} 
     --user {{uid.stdout}}:{{gid.stdout}} 
-    {{ alertmanager_image }} 
+    dockerhub.url.com/{{ alertmanager_image }} 
     --config.file=/etc/alertmanager/alertmanager.yml
     --cluster.peer={{ alertmanager_peer }}
     --web.listen-address=:{{alertmanager_instance_port}}
-    --web.external-url=https://{{ env_domain }}.domain.com/alertmanager 
+    --web.external-url=https://{{ env_domain }}.project.com/alertmanager 
     --web.route-prefix="/"
     

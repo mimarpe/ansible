@@ -4,4 +4,12 @@
   
   roles:
     - role: cassandra-certificates
-      tags: [ never, certificates ]
+      tags: [ never, create ]
+      when: inventory_hostname == groups['monitoringnodes'][0]
+      
+- hosts: dbnodes
+  gather_facts: no
+  
+  roles:
+    - role: cassandra-certificates-copy
+      tags: [ never, copy ]

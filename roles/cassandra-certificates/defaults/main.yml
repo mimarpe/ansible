@@ -1,3 +1,2 @@
 cassandra_certificates_home: /home/{{ansible_ssh_user}}/CA
-cassandra_certificates_group: all
-cassandra_certificates_hosts: "{{ groups[cassandra_certificates_group] }}"
+cassandra_certificates_hosts: "{{ groups['all'] }}"

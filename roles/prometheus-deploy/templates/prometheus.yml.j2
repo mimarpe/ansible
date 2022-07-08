@@ -20,7 +20,7 @@ alerting:
         insecure_skip_verify: true
 
       basic_auth:
-        username: opsmaster
+        username: {{ansible_ssh_user}}
         password: {{ alertmanager_secret }}
       
       static_configs:
@@ -38,12 +38,32 @@ scrape_configs:
           alias: {{ item }}
 {% endfor %}
 
-{% for item in groups['nondbnodes'] %}
+{% for item in groups['appnodes'] %}
   - job_name: '{{ item }}'
     static_configs:
       - targets: ['{{ item }}:9100']
         labels:
           alias: {{ item }}
+{% endfor %}
+
+{% for item in groups['windowsnodes'] %}
+  - job_name: '{{ item }}'
+    static_configs:
+      - targets: ['{{ item }}.server.com:9100']
+        labels:
+          alias: {{ item }}
+{% endfor %}
+
+{% for server in groups['monitoringnodes'] %}
+{% if hostvars[server].jobs is defined %}
+{% for job in hostvars[server].jobs %}
+  - job_name: '{{job.split(':')[0]}}'
+    static_configs:
+      - targets: ['{{ server }}:{{ job.split(':')[1] }}']
+        labels:
+          alias: {{ job.split(':')[0] }}
+{% endfor %}
+{% endif %}
 {% endfor %}
 
 {% for item in ansible_play_hosts %}
@@ -64,12 +84,21 @@ scrape_configs:
     tls_config:
       insecure_skip_verify: true
     basic_auth:
-      username: opsmaster
+      username: {{ansible_ssh_user}}
       password: {{ prometheus_pw }}
     static_configs:
       - targets: ['{{ item }}:{{prometheus_front_port}}']
         labels:
           alias: prometheus_{{ item }}
+{% endfor %}
+
+{% for server in groups['appnodes'] %}
+{% for jmxp in hostvars[server].jmxports %}
+  - job_name: 'jmx_exporter_{{server}}_{{jmxp}}'
+    scheme: http
+    static_configs:
+      - targets: ['{{server}}:{{jmxp}}']
+{% endfor %}
 {% endfor %}
 
   - job_name: 'blackbox_https'
@@ -89,6 +118,11 @@ scrape_configs:
         - https://{{tomcat}}:{{endpointt}}
 {% endfor %}
 {% endfor %}
+{% for arender in groups['arendernodes'] %}
+{% for endpointa in hostvars[arender].endpoints %}
+        - http://{{arender}}:{{endpointa}}
+{% endfor %}
+{% endfor %}
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -105,7 +139,25 @@ scrape_configs:
     static_configs:
       - targets:
 {% for item in groups['dbnodes'] %}
-        - {{item}}:7001  # Target to probe
+        - {{item}}:{{cassandra_tcp_port}}  # Target to probe cassandra
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: {{inventory_hostname}}:{{blackbox_port_exposed}}  # Blackbox exporter.
+
+  - job_name: 'blackbox_tcp_nossl'
+    scrape_interval: "60s"
+    metrics_path: /probe
+    params:
+      module: [tcp_nossl]
+    static_configs:
+      - targets:
+{% for item in groups['cassandranodes'] %}
+        - {{item}}:{{spark_port_worker}}  # Target to probe spark
 {% endfor %}
     relabel_configs:
       - source_labels: [__address__]

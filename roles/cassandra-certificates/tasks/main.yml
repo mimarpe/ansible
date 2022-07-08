@@ -17,6 +17,11 @@
 - fail:
     msg: "The ca-key doesn't exist"
   when: key.stat.exists == False
+
+- name: check server-truststore exists
+  stat:
+    path: "{{cassandra_certificates_home}}/server-truststore.jks"
+  register: keyts
     
 # Create truststore
 - name: Create truststore
@@ -25,14 +30,15 @@
     -file {{cassandra_certificates_home}}/ca-cert -keypass {{cassandra_ca_pw}} -storepass {{ cassandra_kt_pw }} -noprompt
   args: 
     executable: /bin/bash
-
+  when: keyts.stat.exists == False
+    
 # For each node  
 # Create keystore
 - name: Create keystore
   shell: > 
     keytool -genkeypair -keyalg RSA -alias {{item}} -keystore {{cassandra_certificates_home}}/{{item}}.jks 
     -keypass {{ cassandra_kt_pw }} -storepass {{ cassandra_kt_pw }} -validity 730 -keysize 2048 
-    -dname "CN={{item}}, OU=CassandraCluster, O=Org, C=CH"
+    -dname "CN={{item}}, OU=CassandraCluster, O=Organisation, C=COM"
   args: 
     executable: /bin/bash    
   loop: "{{ cassandra_certificates_hosts }}"
@@ -72,12 +78,69 @@
     -file {{cassandra_certificates_home}}/{{item}}_cert_signed -keypass {{ cassandra_kt_pw }} -storepass {{ cassandra_kt_pw }}
   args: 
     executable: /bin/bash    
-  loop: "{{ cassandra_certificates_hosts }}"
-  
-# Remove temporary files
-- name: Remove temporary files
+  loop: "{{ cassandra_certificates_hosts }}" 
+
+# jks to p12
+- name: jks to p12
   shell: > 
-    rm -f {{cassandra_certificates_home}}/*_cert_signed {{cassandra_certificates_home}}/*_cert_sr {{cassandra_certificates_home}}/*.srl 
+    keytool -importkeystore -srckeystore {{cassandra_certificates_home}}/{{item}}.jks -destkeystore {{cassandra_certificates_home}}/{{item}}.p12 
+    -deststoretype PKCS12 -srcalias {{item}} -deststorepass {{ cassandra_kt_pw }} -destkeypass {{ cassandra_kt_pw }} 
+    -srcstorepass {{ cassandra_kt_pw }} -srckeypass {{ cassandra_kt_pw }}
   args: 
     executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
   
+# Extract certificate pem from p12
+- name: Extract certificate pem from p12
+  shell: > 
+    openssl pkcs12 -in {{cassandra_certificates_home}}/{{item}}.p12 -nokeys -out {{cassandra_certificates_home}}/{{item}}.cer.pem -passin pass:{{ cassandra_kt_pw }}
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+  
+# Extract key pem from p12
+- name: Extract key pem from p12
+  shell: > 
+    openssl pkcs12 -in {{cassandra_certificates_home}}/{{item}}.p12 -nodes -nocerts -out {{cassandra_certificates_home}}/{{item}}.key.pem -passin pass:{{ cassandra_kt_pw }}
+  args: 
+    executable: /bin/bash    
+  loop: "{{ cassandra_certificates_hosts }}"
+
+# chmod key
+- name: chmod key
+  file:
+    path: "{{cassandra_certificates_home}}/{{item}}.key.pem"
+    mode: '0400'
+  loop: "{{ cassandra_certificates_hosts }}"
+
+# Create folder for certificates    
+- name: Creates directory for certificates
+  file: path="{{cassandra_certificates_home}}/{{env_domain}}" state=directory
+  
+# mv jks and pem
+- name: mv jks and pem
+  shell: > 
+    mv -f {{cassandra_certificates_home}}/{{item}}.*.pem {{cassandra_certificates_home}}/{{item}}.jks {{cassandra_certificates_home}}/{{env_domain}}/
+  args: 
+    executable: /bin/bash
+  loop: "{{ cassandra_certificates_hosts }}"
+  
+# Find temporary files
+- name: Find temporary files
+  find:
+    paths: "{{cassandra_certificates_home}}"
+    patterns: "*_cert_signed,*_cert_sr,*.srl,*.p12"
+  register: wildcard_files_to_delete
+
+# Remove temporary files
+- name: Remove temporary files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ wildcard_files_to_delete.files }}"
+  
+  # chmod trustore
+- name: chmod trustore
+  file:
+    path: "{{cassandra_certificates_home}}/server-truststore.jks"
+    mode: '0644'

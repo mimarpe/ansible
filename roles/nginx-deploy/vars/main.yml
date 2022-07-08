@@ -7,7 +7,7 @@ nginx_reaper_instance_port: 8080
 nginx_reaper_back_port: 18080
 nginx_grafana_instance_port: 3000
 nginx_grafana_back_port: 13000
-nginx_image: nginx
+nginx_image: nginx:1.21.6
 nginx_home: /home/{{ansible_ssh_user}}
 nginx_net: --net=host
 #nginx_net: -p {{ nginx_instance_port }}:{{ nginx_instance_port }}

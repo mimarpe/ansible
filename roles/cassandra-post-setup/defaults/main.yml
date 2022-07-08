@@ -1,1 +1,4 @@
-main_seed: "{{ ansible_play_hosts | first }}"
+insertions: true
+app_version: 2.9.0
+compaction: "'class': 'LeveledCompactionStrategy', 'sstable_size_in_mb' : 256"
+#compaction: "'class': 'SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'"

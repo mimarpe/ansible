@@ -11,6 +11,7 @@ with open(lfn) as f:
     if start > 0:
       end = line.find("\n")
       no_remove.add(line[start:end].strip())
+#.replace('snapshots/archive/','')
 
 no_remove.add(lfn)
 
@@ -19,5 +20,5 @@ for path, subdirs, files in os.walk(base_path):
   for f in files:
     name = os.path.join(path,f)
     if name not in no_remove:
-      print name
+      print(name)
       os.unlink(name)

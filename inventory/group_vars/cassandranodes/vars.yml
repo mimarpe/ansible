@@ -1,7 +1,23 @@
 cassandra_cluster_name: "Cassandra {{env_domain}} Cluster"
-cassandra_version: 3.11.4
+cassandra_version: 3.11.11
 cassandra_extra_opts: 
 # -e when starting cassandra in elassadra cluster enables elastic search
+cassandra_start_path: 
 cassandra_url_download: "{{ custom_files_repo_url }}/apache-cassandra-{{ cassandra_version }}-bin.tar.gz"
 cassandra_installation_type: apache-cassandra
-replication_strategy: "'DC1':1, 'DC2':1,'DC3':1"
+replication_strategy: "'dc1':3"
+cassandra_numtokens: 8
+keyspace_allocate: keyspacename
+cassandra_seeds: "{{ groups['cassandraseeds'][0] }},{{ groups['cassandraseeds'][1] }},{{ groups['cassandraseeds'][2] }}"
+spark_master: "{{ groups['cassandraseeds'][0] }}"
+main_seed: "{{ groups['cassandraseeds'][0] }}"
+snapshot_day:
+  lab: 'Monday'
+  dev: 'Tuesday'
+  rec: 'Wednesday'
+  prod: 'Saturday'
+snapshot_time:
+  lab: '13'
+  dev: '13'
+  rec: '13'
+  prod: '13'

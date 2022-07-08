@@ -1,13 +1,14 @@
 ---
-- hosts: dbnodes
-  gather_facts: no
+- hosts: cassandranodes
+  gather_facts: yes
   
   roles:
     - role: spark-setup
       tags: [ never, setup ]
+    - role: spark-job-deploy
+      tags: [ never, job-deploy ]
     - role: spark-start
       tags: [ never, start ]
-      when: inventory_hostname == ansible_play_hosts[0]
+      when: inventory_hostname == spark_master
     - role: spark-stop
       tags: [ never, stop ]
-      when: inventory_hostname == ansible_play_hosts[0]

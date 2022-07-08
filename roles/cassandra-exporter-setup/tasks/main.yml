@@ -1,5 +1,5 @@
 ---
-# Create folder for cassandra-exporter    
+# Create folder for cassandra-exporter
 - name: Creates directory for cassandra-exporter
   file: path="{{ cassandra_home }}/cassandra_exporter-{{ cassandra_exporter_version }}" state=directory    
     
@@ -13,14 +13,14 @@
 # Download cassandra-exporter
 - name: Download jar and check md5
   get_url:
-    url: "{{ custom_files_repo_url }}/cassandra_exporter-{{ cassandra_exporter_version }}-all.jar"
-    dest: "{{ cassandra_home }}/cassandra_exporter-{{ cassandra_exporter_version }}/cassandra_exporter-{{ cassandra_exporter_version }}-all.jar"
-    checksum: md5:{{ cassandra_exporter_md5 }}
+    url: "{{ custom_files_repo_url }}/cassandra_exporter-{{ cassandra_exporter_version }}.jar"
+    dest: "{{ cassandra_home }}/cassandra_exporter-{{ cassandra_exporter_version }}/cassandra_exporter-{{ cassandra_exporter_version }}.jar"
+#    checksum: md5:{{ cassandra_exporter_md5 }}
     
 # Create link
 - name: Create symlink to cassandra-exporter jar
   file:
-    src: "cassandra_exporter-{{ cassandra_exporter_version }}-all.jar"
+    src: "cassandra_exporter-{{ cassandra_exporter_version }}.jar"
     dest: "{{ cassandra_home }}/current_exporter/cassandra_exporter.jar"
     state: link
 
